@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import useSWRMutation from "swr/mutation";
 import { post } from "@/lib/apis";
-import { mutate } from "swr";
+import { revalidateCampaignLeadExtras } from "@/lib/revalidate-leads";
 import { z } from "zod";
 import { toast } from "sonner";
 import Papa from "papaparse";
@@ -99,9 +99,9 @@ const ImportLeadsDialog = ({ open = false, setOpen, campaign }) => {
     "/api/contacts/import-file",
     post,
     {
-      onSuccess: () => {
+      onSuccess: async () => {
         setOpen(false);
-        mutate(`/api/contacts/paginatedapi?campaign=${campaign}`);
+        await revalidateCampaignLeadExtras(campaign);
         toast.success(`${data.length} leads imported successfully`);
         if (duplicateEmails.length > 0) {
           toast(`Skipped ${duplicateEmails.length} duplicate(s).`, {

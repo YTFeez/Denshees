@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import useSWR from "swr";
 import useSWRMutation from "swr/mutation";
 import { post } from "@/lib/apis";
-import { mutate } from "swr";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Trash2Icon, CheckCircleIcon, ExclamationCircleIcon, ExclamationTriangleIcon } from "mage-icons-react/bulk";
@@ -23,6 +22,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { PersonalizationForm } from "./personalization-form";
 import fetcher from "@/lib/fetcher";
 import instance from "@/lib/axios";
+import { revalidateCampaignLeadExtras } from "@/lib/revalidate-leads";
 
 /**
  * Extract unique personalization variable names from pitch messages and subjects.
@@ -144,10 +144,10 @@ const AddLeadDialog = ({ open = false, setOpen, campaign, onSuccess }) => {
   console.log(pitchesData);
 
   const { trigger, isMutating } = useSWRMutation("/api/contacts/import", post, {
-    onSuccess: () => {
+    onSuccess: async () => {
       const addedEmail = leadData.email;
       setOpen(false);
-      mutate(`/api/contacts/paginatedapi?campaign=${campaign}`);
+      await revalidateCampaignLeadExtras(campaign);
       toast.success("Lead added successfully");
       onSuccess?.({ email: addedEmail });
     },

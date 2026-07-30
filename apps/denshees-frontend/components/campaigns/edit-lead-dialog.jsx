@@ -14,12 +14,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import useSWRMutation from "swr/mutation";
 import { patch } from "@/lib/apis";
-import { mutate } from "swr";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Trash2Icon } from "mage-icons-react/bulk";
 import { AnimatePresence, motion } from "framer-motion";
 import { PersonalizationForm } from "./personalization-form";
+import { revalidateCampaignLeadExtras } from "@/lib/revalidate-leads";
 
 const leadSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -44,9 +44,9 @@ const EditLeadDialog = ({ open = false, setOpen, lead = null, campaign }) => {
     lead ? `/api/lead/update?lead=${lead.id}` : null,
     patch,
     {
-      onSuccess: () => {
+      onSuccess: async () => {
         toast.success("Lead updated successfully");
-        mutate(`/api/contacts/paginatedapi?campaign=${campaign}`);
+        await revalidateCampaignLeadExtras(campaign);
         setOpen(false);
       },
       onError: () => {

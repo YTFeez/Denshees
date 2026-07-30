@@ -82,6 +82,11 @@ export default function CampaignLeadsPage() {
       : null,
     fetcher,
     {
+      // Keep leads table live (status, emails sent) while viewing the page
+      refreshInterval:
+        currentCampaign?.status === "RUNNING" ? 4000 : 10000,
+      revalidateOnFocus: true,
+      keepPreviousData: true,
       onSuccess: (data) => {
         setLeadsData(data);
       },
