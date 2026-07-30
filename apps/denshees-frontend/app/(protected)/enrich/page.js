@@ -122,25 +122,53 @@ function parseCsv(text) {
   });
 }
 
-function toCsv(rows) {
-  if (!rows.length) return "";
+function isImportableEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
+}
+
+/** Denshees Import expects `name` + `email`; extra cols = personalization vars */
+function toDensheesLeadsCsv(rows) {
+  const leads = rows.filter((r) => isImportableEmail(r.email));
+  if (!leads.length) return { csv: "", count: 0, skipped: rows.length };
+
   const headers = [
+    "name",
+    "email",
     "firstName",
     "lastName",
     "company",
     "domain",
     "linkedin",
-    "email",
-    "emailStatus",
-    "emailReason",
     "confidence",
-    "source",
+    "emailStatus",
   ];
   const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  return [
-    headers.join(";"),
-    ...rows.map((r) => headers.map((h) => esc(r[h])).join(";")),
-  ].join("\n");
+  const lines = leads.map((r) => {
+    const firstName = r.firstName || "";
+    const lastName = r.lastName || "";
+    const name =
+      [firstName, lastName].filter(Boolean).join(" ").trim() ||
+      String(r.email).split("@")[0];
+    return [
+      name,
+      String(r.email).trim().toLowerCase(),
+      firstName,
+      lastName,
+      r.company || "",
+      r.domain || "",
+      r.linkedin || "",
+      r.confidence ?? "",
+      r.emailStatus || "",
+    ]
+      .map(esc)
+      .join(",");
+  });
+
+  return {
+    csv: [headers.join(","), ...lines].join("\n"),
+    count: leads.length,
+    skipped: rows.length - leads.length,
+  };
 }
 
 function mergeStats(parts) {
@@ -386,15 +414,23 @@ export default function EnrichPage() {
 
   const download = () => {
     if (!result?.leads?.length) return;
-    const blob = new Blob([toCsv(result.leads)], {
-      type: "text/csv;charset=utf-8;",
-    });
+    const { csv, count, skipped } = toDensheesLeadsCsv(result.leads);
+    if (!count) {
+      toast.error("No valid emails to export for Denshees import");
+      return;
+    }
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `denshees-enriched-${Date.now()}.csv`;
+    a.download = `denshees-leads-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    toast.success(
+      skipped
+        ? `Exported ${count} leads for Denshees · ${skipped} without email skipped`
+        : `Exported ${count} leads ready to import in Denshees`,
+    );
   };
 
   return (
@@ -413,7 +449,7 @@ export default function EnrichPage() {
           disabled={!result?.leads?.length}
         >
           <DownloadIcon className="w-4 h-4 mr-2" />
-          Export CSV
+          Export for Denshees
         </Button>
       </div>
 
@@ -633,7 +669,7 @@ export default function EnrichPage() {
               </div>
               <Button onClick={download} disabled={!result.leads?.length}>
                 <DownloadIcon className="w-4 h-4 mr-2" />
-                Export CSV
+                Export for Denshees
               </Button>
             </div>
 
@@ -690,9 +726,10 @@ export default function EnrichPage() {
           </div>
 
           <p className="text-xs text-gray-500">
-            Likely emails use common work patterns on domains that accept mail.
-            Found emails were discovered on the company website. Import the
-            export into Lists or a campaign when you&apos;re ready to send.
+            Export is Denshees-ready: columns <span className="font-medium">name</span> +{" "}
+            <span className="font-medium">email</span> (plus company, domain,
+            etc. for personalization). Import via Campaign → Leads → Import.
+            Rows without a valid email are skipped.
           </p>
         </>
       )}
