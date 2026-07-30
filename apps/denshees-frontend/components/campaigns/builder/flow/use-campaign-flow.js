@@ -99,6 +99,7 @@ export function useCampaignFlow({ pitches, stats, handlers, selectedPitchId }) {
       sized("add", {
         id: "add",
         type: "add",
+        // onAdd receives { kind, delayDays } from the block menu
         data: { onAdd: handlers.onAddPitch, disabled: handlers.busy },
       }),
     );

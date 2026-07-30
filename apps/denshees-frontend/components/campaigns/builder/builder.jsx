@@ -109,18 +109,38 @@ const Builder = ({ campaign }) => {
     };
   }, [contactsData, pitches.length]);
 
-  const handleAddPitch = useCallback(async () => {
-    setBusy(true);
-    try {
-      await post(`/api/pitches/create?campaign=${campaign}`, { arg: {} });
-      await mutatePitches();
-      toast.success("Follow-up added");
-    } catch (error) {
-      toast.error(errorMessage(error, "Could not add follow-up"));
-    } finally {
-      setBusy(false);
-    }
-  }, [campaign, mutatePitches]);
+  const handleAddPitch = useCallback(
+    async (option = {}) => {
+      const kind = option.kind || "followup";
+      const delayDays =
+        option.delayDays !== undefined && option.delayDays !== null
+          ? Number(option.delayDays)
+          : kind === "breakup"
+            ? 4
+            : 3;
+
+      setBusy(true);
+      try {
+        const pitch = await post(`/api/pitches/create?campaign=${campaign}`, {
+          arg: { kind, delayDays },
+        });
+        await mutatePitches();
+        if (pitch?.id) {
+          setSelectedPitch(pitch);
+        }
+        toast.success(
+          kind === "breakup"
+            ? `Break-up added · wait ${delayDays} days`
+            : `Follow-up added · wait ${delayDays} days`,
+        );
+      } catch (error) {
+        toast.error(errorMessage(error, "Could not add block"));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [campaign, mutatePitches],
+  );
 
   const confirmDeletePitch = useCallback(async () => {
     const pitch = pendingDelete;
@@ -225,11 +245,17 @@ const Builder = ({ campaign }) => {
 
           <Panel
             position="top-left"
-            className="bg-white p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+            className="bg-white p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-w-[260px]"
           >
             <h3 className="text-sm font-bold">Email Campaign Flow</h3>
             <p className="mt-1 text-xs text-gray-600">
-              Click an email to edit it, or a delay to change its wait.
+              Click an email to edit it, or a delay to change its wait. Use{" "}
+              <span className="font-medium text-black">+ Add block</span> to
+              append a real follow-up to the sequence.
+            </p>
+            <p className="mt-2 text-[11px] text-gray-500 leading-snug">
+              Linear sequence only. Replied / Opened / No reply are stats —
+              sending stops automatically when a lead replies.
             </p>
           </Panel>
         </ReactFlow>
