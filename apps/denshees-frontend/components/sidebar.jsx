@@ -10,6 +10,7 @@ import {
   SettingsIcon,
   QuestionMarkCircleIcon,
   MessageSquareIcon,
+  SearchIcon,
 } from "mage-icons-react/bulk";
 import { ChevronLeftIcon, ChevronRightIcon } from "mage-icons-react/stroke";
 import { cn } from "@/lib/utils";
@@ -34,7 +35,7 @@ const sidebarLinks = [
   },
   {
     label: "Enrich",
-    icon: ChecklistNoteIcon,
+    icon: SearchIcon,
     href: "/enrich",
   },
   {

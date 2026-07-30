@@ -2,11 +2,75 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import {
+  EmailIcon,
+  UsersIcon,
+  CheckCircleIcon,
+  BuildingBIcon,
+  SearchIcon,
+} from "mage-icons-react/bulk";
+import {
+  DownloadIcon,
+  ReloadIcon,
+  UploadIcon,
+} from "mage-icons-react/stroke";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 const CHUNK = 40;
+const PANEL =
+  "border border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]";
+
+const MODE_OPTIONS = [
+  {
+    value: "mx",
+    label: "Standard",
+    hint: "Email patterns + MX check + website scan",
+  },
+  {
+    value: "pattern",
+    label: "Fast",
+    hint: "Patterns + MX only — best for large CSVs",
+  },
+  {
+    value: "smtp",
+    label: "Deep verify",
+    hint: "SMTP probe — slower, often blocked on home networks",
+  },
+];
+
+const STATUS_META = {
+  found: {
+    label: "Found",
+    className: "bg-emerald-50 text-emerald-800 border-emerald-300",
+  },
+  valid: {
+    label: "Verified",
+    className: "bg-green-50 text-green-800 border-green-300",
+  },
+  likely: {
+    label: "Likely",
+    className: "bg-blue-50 text-blue-800 border-blue-300",
+  },
+  risky: {
+    label: "Risky",
+    className: "bg-yellow-50 text-yellow-800 border-yellow-300",
+  },
+  unverified: {
+    label: "Unverified",
+    className: "bg-yellow-50 text-yellow-800 border-yellow-300",
+  },
+  invalid: {
+    label: "Invalid",
+    className: "bg-red-50 text-red-800 border-red-300",
+  },
+  skipped: {
+    label: "Skipped",
+    className: "bg-gray-50 text-gray-700 border-gray-300",
+  },
+};
 
 function parseCsv(text) {
   const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter(Boolean);
@@ -96,12 +160,55 @@ function mergeStats(parts) {
   return stats;
 }
 
-function statusColor(status) {
-  if (status === "found" || status === "valid") return "text-emerald-700";
-  if (status === "likely") return "text-sky-700";
-  if (status === "risky" || status === "unverified") return "text-amber-700";
-  if (status === "invalid" || status === "skipped") return "text-neutral-500";
-  return "";
+function StatusBadge({ status }) {
+  const meta = STATUS_META[status] || {
+    label: status || "Unknown",
+    className: "bg-gray-50 text-gray-800 border-gray-300",
+  };
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center justify-center text-xs px-2 py-0.5 font-medium border shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]",
+        meta.className,
+      )}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
+function StatCard({ title, value, icon: Icon }) {
+  return (
+    <div className={`${PANEL} p-4`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm text-gray-600">{title}</p>
+          <p className="text-2xl font-bold mt-1">{value}</p>
+        </div>
+        {Icon && (
+          <div className="border border-black p-2 bg-gray-50">
+            <Icon className="w-5 h-5" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function leadName(row) {
+  return (
+    [row.FirstName || row.firstName || row.first_name, row.LastName || row.lastName || row.last_name]
+      .filter(Boolean)
+      .join(" ") || "—"
+  );
+}
+
+function leadCompany(row) {
+  return row.CompanyName || row.company || row.companyName || row.Company || "—";
+}
+
+function leadDomain(row) {
+  return row.Domain || row.domain || row.website || row.Website || "—";
 }
 
 export default function EnrichPage() {
@@ -114,21 +221,26 @@ export default function EnrichPage() {
   const [result, setResult] = useState(null);
 
   const preview = useMemo(() => rows.slice(0, 5), [rows]);
+  const modeMeta = MODE_OPTIONS.find((m) => m.value === mode) || MODE_OPTIONS[0];
 
   const onFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const text = await file.text();
     const parsed = parseCsv(text);
+    if (!parsed.length) {
+      toast.error("No leads found in this CSV");
+      return;
+    }
     setRows(parsed);
     setFileName(file.name);
     setResult(null);
-    toast.success(`${parsed.length} leads chargés`);
+    toast.success(`${parsed.length} leads loaded`);
   };
 
   const runEnrich = async () => {
     if (!rows.length) {
-      toast.error("Importe un CSV d'abord");
+      toast.error("Upload a CSV first");
       return;
     }
     setLoading(true);
@@ -144,10 +256,8 @@ export default function EnrichPage() {
       const parts = [];
       for (let i = 0; i < chunks.length; i++) {
         setProgress(
-          `Lot ${i + 1}/${chunks.length} (${parts.reduce((n, p) => n + (p.leads?.length || 0), 0)}/${totalWanted})`,
+          `Processing batch ${i + 1} of ${chunks.length} (${parts.reduce((n, p) => n + (p.leads?.length || 0), 0)}/${totalWanted})`,
         );
-        // fetch natif : l'interceptor axios renvoie déjà response.data,
-        // et un `const { data }` cassait l'UI (résultats toujours vides).
         const res = await fetch("/api/enrich", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -172,17 +282,17 @@ export default function EnrichPage() {
         });
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data?.message || `Erreur HTTP ${res.status}`);
+          throw new Error(data?.message || `Request failed (${res.status})`);
         }
         if (!data?.leads) {
-          throw new Error("Réponse enrich invalide (pas de leads)");
+          throw new Error("Invalid enrich response");
         }
         parts.push(data);
       }
 
       const leads = parts.flatMap((p) => p.leads || []);
       const merged = {
-        engine: parts[0]?.engine || "denshees-enrich-v2",
+        engine: parts[0]?.engine || "denshees-enrich",
         mode,
         note: parts[0]?.note,
         stats: mergeStats(parts),
@@ -192,16 +302,16 @@ export default function EnrichPage() {
       setProgress("");
       if (!merged.stats.withEmail) {
         toast.error(
-          `0 email trouvé sur ${merged.stats.total} (domaines manquants ou MX KO)`,
+          `No emails found for ${merged.stats.total} leads — check domain columns`,
         );
       } else {
         toast.success(
-          `Enrichi : ${merged.stats.withEmail}/${merged.stats.total} · confiance moy. ${merged.stats.avgConfidence}%`,
+          `Enriched ${merged.stats.withEmail}/${merged.stats.total} leads · avg confidence ${merged.stats.avgConfidence}%`,
         );
       }
     } catch (err) {
       console.error(err);
-      toast.error(err?.message || "Enrichissement échoué");
+      toast.error(err?.message || "Enrichment failed");
       setProgress("");
     } finally {
       setLoading(false);
@@ -216,145 +326,264 @@ export default function EnrichPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `enriched-${Date.now()}.csv`;
+    a.download = `denshees-enriched-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="space-y-8 max-w-5xl">
-      <div>
-        <h1 className="text-2xl font-semibold">Enrich</h1>
-        <p className="text-sm text-neutral-600 mt-1">
-          CSV TotLeads → emails (patterns FR + MX + scrape site) → export campagne.
-          Mode recommandé : <strong>MX + site</strong> (concluant sans port 25).
-        </p>
+    <div className="space-y-8">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold">Enrich</h1>
+          <p className="text-gray-600 mt-1">
+            Find work emails from your lead CSV, then export them into a campaign
+            or list.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={download}
+          disabled={!result?.leads?.length}
+        >
+          <DownloadIcon className="w-4 h-4 mr-2" />
+          Export CSV
+        </Button>
       </div>
 
-      <div className="border rounded-xl p-5 space-y-4 bg-white">
+      <div className={`${PANEL} p-6 space-y-6`}>
         <div>
-          <Label>CSV (TotLeads / export)</Label>
-          <Input type="file" accept=".csv,text/csv" onChange={onFile} />
-          {fileName && (
-            <p className="text-xs text-neutral-500 mt-1">
-              {fileName} · {rows.length} lignes
+          <h2 className="text-md font-bold">Import leads</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Upload a TotLeads or LinkedIn export. Required columns: first name,
+            last name, and company domain.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="enrich-csv">CSV file</Label>
+          <Input
+            id="enrich-csv"
+            type="file"
+            accept=".csv,text/csv"
+            onChange={onFile}
+          />
+          {fileName ? (
+            <p className="text-sm text-gray-600">
+              <span className="font-medium text-black">{fileName}</span>
+              {" · "}
+              {rows.length} leads ready
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500">
+              No file selected yet. Supports comma or semicolon CSV.
             </p>
           )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label>Limite (max 300)</Label>
+          <div className="space-y-2">
+            <Label htmlFor="enrich-limit">Lead limit</Label>
             <Input
+              id="enrich-limit"
               type="number"
               min={1}
               max={300}
               value={limit}
               onChange={(e) => setLimit(e.target.value)}
             />
+            <p className="text-xs text-gray-500">Up to 300 leads per run</p>
           </div>
-          <div>
-            <Label>Mode de vérification</Label>
+          <div className="space-y-2">
+            <Label htmlFor="enrich-mode">Enrichment mode</Label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              id="enrich-mode"
+              className="flex h-10 w-full rounded-md border border-black bg-white px-3 py-2 text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black"
               value={mode}
               onChange={(e) => setMode(e.target.value)}
             >
-              <option value="mx">MX + scrape site (recommandé)</option>
-              <option value="pattern">Patterns + MX rapide (sans scrape)</option>
-              <option value="smtp">SMTP probe (lent, souvent bloqué)</option>
+              {MODE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
+            <p className="text-xs text-gray-500">{modeMeta.hint}</p>
           </div>
         </div>
 
-        <div className="flex gap-3 items-center flex-wrap">
+        <div className="flex flex-wrap items-center gap-3 pt-1">
           <Button onClick={runEnrich} disabled={loading || !rows.length}>
-            {loading ? "Enrichissement…" : "Enrichir"}
+            {loading ? (
+              <>
+                <ReloadIcon className="w-4 h-4 mr-2 animate-spin" />
+                Enriching…
+              </>
+            ) : (
+              <>
+                <SearchIcon className="w-4 h-4 mr-2" />
+                Start enrichment
+              </>
+            )}
           </Button>
           <Button
             variant="outline"
-            onClick={download}
-            disabled={!result?.leads?.length}
+            onClick={() => {
+              setRows([]);
+              setFileName("");
+              setResult(null);
+              setProgress("");
+            }}
+            disabled={loading || (!rows.length && !result)}
           >
-            Télécharger CSV enrichi
+            <UploadIcon className="w-4 h-4 mr-2" />
+            Clear
           </Button>
           {progress && (
-            <span className="text-xs text-neutral-500">{progress}</span>
+            <span className="text-sm text-gray-600">{progress}</span>
           )}
         </div>
       </div>
 
-      {preview.length > 0 && (
-        <div className="border rounded-xl p-4 bg-white overflow-auto">
-          <p className="text-sm font-medium mb-2">Aperçu CSV source</p>
-          <pre className="text-xs whitespace-pre-wrap">
-            {JSON.stringify(preview, null, 2)}
-          </pre>
+      {!rows.length && !result && (
+        <div className={`${PANEL} p-10 text-center`}>
+          <UsersIcon className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="font-medium">No leads imported</p>
+          <p className="text-sm text-gray-600 mt-1 max-w-md mx-auto">
+            Import a CSV to generate work emails, verify domains, and export a
+            campaign-ready file.
+          </p>
+        </div>
+      )}
+
+      {preview.length > 0 && !result && (
+        <div className={`${PANEL} overflow-hidden`}>
+          <div className="px-6 py-4 border-b border-black">
+            <h2 className="text-md font-bold">Preview</h2>
+            <p className="text-sm text-gray-600 mt-0.5">
+              First {preview.length} of {rows.length} leads
+            </p>
+          </div>
+          <div className="divide-y divide-gray-200">
+            {preview.map((row, i) => (
+              <div
+                key={i}
+                className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-gray-50"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{leadName(row)}</p>
+                  <p className="text-sm text-gray-600 truncate">
+                    {leadCompany(row)}
+                  </p>
+                </div>
+                <p className="text-sm text-gray-500 shrink-0">{leadDomain(row)}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {result && (
-        <div className="border rounded-xl p-4 bg-white space-y-3">
-          <p className="text-sm font-medium">
-            Résultats ({result.engine} · mode {result.mode})
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              title="Processed"
+              value={result.stats.total}
+              icon={UsersIcon}
+            />
+            <StatCard
+              title="With email"
+              value={result.stats.withEmail}
+              icon={EmailIcon}
+            />
+            <StatCard
+              title="Found on site"
+              value={result.stats.found || 0}
+              icon={CheckCircleIcon}
+            />
+            <StatCard
+              title="Avg confidence"
+              value={`${result.stats.avgConfidence}%`}
+              icon={BuildingBIcon}
+            />
+          </div>
+
+          <div className={`${PANEL} overflow-hidden`}>
+            <div className="px-6 py-4 border-b border-black flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="text-md font-bold">Results</h2>
+                <p className="text-sm text-gray-600 mt-0.5">
+                  {MODE_OPTIONS.find((m) => m.value === result.mode)?.label ||
+                    "Standard"}{" "}
+                  mode · {result.stats.likely || 0} likely ·{" "}
+                  {result.stats.invalid || 0} invalid ·{" "}
+                  {result.stats.skipped || 0} skipped
+                </p>
+              </div>
+              <Button onClick={download} disabled={!result.leads?.length}>
+                <DownloadIcon className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
+
+            {!result.leads?.length ? (
+              <div className="px-6 py-10 text-center text-gray-600">
+                No results to display
+              </div>
+            ) : (
+              <div className="overflow-auto max-h-[28rem]">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-black text-white">
+                    <tr className="text-left">
+                      <th className="px-6 py-3 font-medium">Lead</th>
+                      <th className="px-4 py-3 font-medium">Company</th>
+                      <th className="px-4 py-3 font-medium">Email</th>
+                      <th className="px-4 py-3 font-medium">Status</th>
+                      <th className="px-6 py-3 font-medium text-right">
+                        Confidence
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {result.leads.map((lead, i) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="px-6 py-3">
+                          <p className="font-medium">
+                            {lead.firstName} {lead.lastName}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate max-w-[180px]">
+                            {lead.domain || "—"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-gray-700 max-w-[160px] truncate">
+                          {lead.company || "—"}
+                        </td>
+                        <td className="px-4 py-3 font-medium">
+                          {lead.email || (
+                            <span className="text-gray-400 font-normal">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <StatusBadge status={lead.emailStatus} />
+                        </td>
+                        <td className="px-6 py-3 text-right tabular-nums">
+                          {lead.confidence ?? "—"}
+                          {lead.confidence != null ? "%" : ""}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <p className="text-xs text-gray-500">
+            Likely emails use common work patterns on domains that accept mail.
+            Found emails were discovered on the company website. Import the
+            export into Lists or a campaign when you&apos;re ready to send.
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-            <div className="border rounded p-2">
-              Total: {result.stats.total}
-            </div>
-            <div className="border rounded p-2">
-              Avec email: {result.stats.withEmail}
-            </div>
-            <div className="border rounded p-2 text-emerald-700">
-              Trouvés site: {result.stats.found || 0}
-            </div>
-            <div className="border rounded p-2 text-sky-700">
-              Likely (MX): {result.stats.likely || 0}
-            </div>
-            <div className="border rounded p-2">
-              Valid SMTP: {result.stats.valid || 0}
-            </div>
-            <div className="border rounded p-2">
-              Invalid: {result.stats.invalid || 0}
-            </div>
-            <div className="border rounded p-2">
-              Skipped: {result.stats.skipped || 0}
-            </div>
-            <div className="border rounded p-2 font-medium">
-              Confiance moy.: {result.stats.avgConfidence}%
-            </div>
-          </div>
-          <p className="text-xs text-neutral-500">{result.note}</p>
-          <div className="overflow-auto max-h-96">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="text-left border-b">
-                  <th className="p-2">Nom</th>
-                  <th className="p-2">Société</th>
-                  <th className="p-2">Email</th>
-                  <th className="p-2">Status</th>
-                  <th className="p-2">Conf.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.leads.map((l, i) => (
-                  <tr key={i} className="border-b">
-                    <td className="p-2">
-                      {l.firstName} {l.lastName}
-                    </td>
-                    <td className="p-2">{l.company}</td>
-                    <td className="p-2">{l.email}</td>
-                    <td className={`p-2 ${statusColor(l.emailStatus)}`}>
-                      {l.emailStatus}
-                      {l.emailReason ? ` (${l.emailReason})` : ""}
-                    </td>
-                    <td className="p-2">{l.confidence ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        </>
       )}
     </div>
   );

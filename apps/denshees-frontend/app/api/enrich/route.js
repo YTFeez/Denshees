@@ -462,10 +462,10 @@ export async function POST(request) {
       mode,
       note:
         mode === "mx"
-          ? "Patterns FR + vérif MX + scrape site (mailto). SMTP désactivé (port 25 souvent bloqué)."
+          ? "Work-email patterns + MX validation + website scan. SMTP deep verify is optional."
           : mode === "smtp"
-            ? "SMTP probe activé — peut timeout si FAI bloque le port 25."
-            : "Patterns FR + vérif MX (sans scrape site).",
+            ? "SMTP probe enabled — may time out if outbound port 25 is blocked."
+            : "Work-email patterns + MX validation (no website scan).",
       stats,
       leads: enriched,
     });
