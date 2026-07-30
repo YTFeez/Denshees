@@ -413,7 +413,7 @@ export async function POST(request) {
     if (!mode) mode = body?.verify ? "smtp" : "mx";
     if (!["mx", "pattern", "smtp"].includes(mode)) mode = "mx";
 
-    const limit = Math.min(Math.max(Number(body?.limit) || 50, 1), 100);
+    const limit = Math.min(Math.max(Number(body?.limit) || 50, 1), 150);
     const concurrency = Math.min(Math.max(Number(body?.concurrency) || 10, 1), 20);
 
     if (!leads.length) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   EmailIcon,
@@ -8,6 +8,9 @@ import {
   CheckCircleIcon,
   BuildingBIcon,
   SearchIcon,
+  ZapIcon,
+  ShieldCheckIcon,
+  GlobeIcon,
 } from "mage-icons-react/bulk";
 import {
   DownloadIcon,
@@ -19,25 +22,36 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-const CHUNK = 40;
 const PANEL =
   "border border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]";
 
 const MODE_OPTIONS = [
   {
-    value: "mx",
-    label: "Standard",
-    hint: "Email patterns + MX check + website scan",
-  },
-  {
     value: "pattern",
     label: "Fast",
-    hint: "Patterns + MX only — best for large CSVs",
+    hint: "Patterns + MX — best for large CSVs",
+    maxLimit: 300,
+    chunk: 50,
+    defaultLimit: 200,
+    icon: ZapIcon,
+  },
+  {
+    value: "mx",
+    label: "Standard",
+    hint: "Patterns + MX + website scan",
+    maxLimit: 150,
+    chunk: 40,
+    defaultLimit: 100,
+    icon: GlobeIcon,
   },
   {
     value: "smtp",
     label: "Deep verify",
-    hint: "SMTP probe — slower, often blocked on home networks",
+    hint: "SMTP probe — slower, often blocked at home",
+    maxLimit: 30,
+    chunk: 10,
+    defaultLimit: 20,
+    icon: ShieldCheckIcon,
   },
 ];
 
@@ -211,17 +225,53 @@ function leadDomain(row) {
   return row.Domain || row.domain || row.website || row.Website || "—";
 }
 
+function EnrichProgressBar({ processed, total, batch, batches, modeLabel }) {
+  const pct = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
+  return (
+    <div className={`${PANEL} p-4 space-y-3`}>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <ReloadIcon className="w-4 h-4 animate-spin shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-bold truncate">
+              Enriching · {modeLabel}
+            </p>
+            <p className="text-xs text-gray-600">
+              Batch {batch} of {batches} · {processed}/{total} leads
+            </p>
+          </div>
+        </div>
+        <span className="text-sm font-bold tabular-nums">{pct}%</span>
+      </div>
+      <div className="h-3 w-full border border-black bg-gray-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+        <div
+          className="h-full bg-black transition-all duration-300 ease-out"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function EnrichPage() {
   const [rows, setRows] = useState([]);
   const [fileName, setFileName] = useState("");
   const [limit, setLimit] = useState(100);
   const [mode, setMode] = useState("mx");
   const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState("");
+  const [progress, setProgress] = useState(null);
   const [result, setResult] = useState(null);
 
   const preview = useMemo(() => rows.slice(0, 5), [rows]);
-  const modeMeta = MODE_OPTIONS.find((m) => m.value === mode) || MODE_OPTIONS[0];
+  const modeMeta = MODE_OPTIONS.find((m) => m.value === mode) || MODE_OPTIONS[1];
+
+  useEffect(() => {
+    setLimit((prev) => {
+      const n = Number(prev) || modeMeta.defaultLimit;
+      if (n > modeMeta.maxLimit) return modeMeta.defaultLimit;
+      return n;
+    });
+  }, [mode, modeMeta.maxLimit, modeMeta.defaultLimit]);
 
   const onFile = async (e) => {
     const file = e.target.files?.[0];
@@ -244,20 +294,30 @@ export default function EnrichPage() {
       return;
     }
     setLoading(true);
-    setProgress("");
+    setProgress(null);
     try {
-      const totalWanted = Math.min(Number(limit) || 100, rows.length, 300);
+      const maxForMode = modeMeta.maxLimit;
+      const totalWanted = Math.min(
+        Number(limit) || modeMeta.defaultLimit,
+        rows.length,
+        maxForMode,
+      );
       const slice = rows.slice(0, totalWanted);
+      const chunkSize = modeMeta.chunk;
       const chunks = [];
-      for (let i = 0; i < slice.length; i += CHUNK) {
-        chunks.push(slice.slice(i, i + CHUNK));
+      for (let i = 0; i < slice.length; i += chunkSize) {
+        chunks.push(slice.slice(i, i + chunkSize));
       }
 
       const parts = [];
       for (let i = 0; i < chunks.length; i++) {
-        setProgress(
-          `Processing batch ${i + 1} of ${chunks.length} (${parts.reduce((n, p) => n + (p.leads?.length || 0), 0)}/${totalWanted})`,
-        );
+        const processed = parts.reduce((n, p) => n + (p.leads?.length || 0), 0);
+        setProgress({
+          processed,
+          total: totalWanted,
+          batch: i + 1,
+          batches: chunks.length,
+        });
         const res = await fetch("/api/enrich", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -288,6 +348,12 @@ export default function EnrichPage() {
           throw new Error("Invalid enrich response");
         }
         parts.push(data);
+        setProgress({
+          processed: parts.reduce((n, p) => n + (p.leads?.length || 0), 0),
+          total: totalWanted,
+          batch: i + 1,
+          batches: chunks.length,
+        });
       }
 
       const leads = parts.flatMap((p) => p.leads || []);
@@ -299,7 +365,7 @@ export default function EnrichPage() {
         leads,
       };
       setResult(merged);
-      setProgress("");
+      setProgress(null);
       if (!merged.stats.withEmail) {
         toast.error(
           `No emails found for ${merged.stats.total} leads — check domain columns`,
@@ -312,7 +378,7 @@ export default function EnrichPage() {
     } catch (err) {
       console.error(err);
       toast.error(err?.message || "Enrichment failed");
-      setProgress("");
+      setProgress(null);
     } finally {
       setLoading(false);
     }
@@ -381,36 +447,84 @@ export default function EnrichPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="enrich-limit">Lead limit</Label>
-            <Input
-              id="enrich-limit"
-              type="number"
-              min={1}
-              max={300}
-              value={limit}
-              onChange={(e) => setLimit(e.target.value)}
-            />
-            <p className="text-xs text-gray-500">Up to 300 leads per run</p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="enrich-mode">Enrichment mode</Label>
-            <select
-              id="enrich-mode"
-              className="flex h-10 w-full rounded-md border border-black bg-white px-3 py-2 text-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-black"
-              value={mode}
-              onChange={(e) => setMode(e.target.value)}
-            >
-              {MODE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500">{modeMeta.hint}</p>
+        <div className="space-y-2">
+          <Label>Search depth</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {MODE_OPTIONS.map((opt) => {
+              const Icon = opt.icon;
+              const selected = mode === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setMode(opt.value)}
+                  className={cn(
+                    "text-left p-3 border border-black bg-white transition-all",
+                    "shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
+                    "hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]",
+                    "disabled:opacity-60 disabled:pointer-events-none",
+                    selected && "bg-black text-white",
+                  )}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="font-bold text-sm">{opt.label}</span>
+                  </div>
+                  <p
+                    className={cn(
+                      "text-xs leading-snug",
+                      selected ? "text-gray-300" : "text-gray-600",
+                    )}
+                  >
+                    {opt.hint}
+                  </p>
+                  <p
+                    className={cn(
+                      "text-xs mt-2 font-medium",
+                      selected ? "text-white" : "text-gray-800",
+                    )}
+                  >
+                    Max {opt.maxLimit} leads
+                  </p>
+                </button>
+              );
+            })}
           </div>
         </div>
+
+        <div className="space-y-2 max-w-xs">
+          <Label htmlFor="enrich-limit">Lead limit</Label>
+          <Input
+            id="enrich-limit"
+            type="number"
+            min={1}
+            max={modeMeta.maxLimit}
+            value={limit}
+            disabled={loading}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (!Number.isFinite(n)) {
+                setLimit(e.target.value);
+                return;
+              }
+              setLimit(Math.min(Math.max(1, n), modeMeta.maxLimit));
+            }}
+          />
+          <p className="text-xs text-gray-500">
+            {modeMeta.label} mode · up to {modeMeta.maxLimit} leads per run
+          </p>
+        </div>
+
+        {loading && progress && (
+          <EnrichProgressBar
+            processed={progress.processed}
+            total={progress.total}
+            batch={progress.batch}
+            batches={progress.batches}
+            modeLabel={modeMeta.label}
+          />
+        )}
 
         <div className="flex flex-wrap items-center gap-3 pt-1">
           <Button onClick={runEnrich} disabled={loading || !rows.length}>
@@ -432,16 +546,13 @@ export default function EnrichPage() {
               setRows([]);
               setFileName("");
               setResult(null);
-              setProgress("");
+              setProgress(null);
             }}
             disabled={loading || (!rows.length && !result)}
           >
             <UploadIcon className="w-4 h-4 mr-2" />
             Clear
           </Button>
-          {progress && (
-            <span className="text-sm text-gray-600">{progress}</span>
-          )}
         </div>
       </div>
 
