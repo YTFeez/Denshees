@@ -148,12 +148,20 @@ export default function EnrichPage() {
         const { data } = await instance.post(
           "/api/enrich",
           {
-            leads: chunks[i],
+            leads: chunks[i].map((r) => ({
+              FirstName: r.FirstName || r.firstName || r.first_name || "",
+              LastName: r.LastName || r.lastName || r.last_name || "",
+              Domain: r.Domain || r.domain || r.website || r.Website || "",
+              CompanyName:
+                r.CompanyName || r.company || r.companyName || r.Company || "",
+              LinkedinURL:
+                r.LinkedinURL || r.linkedin || r.linkedinUrl || r.LinkedIn || "",
+            })),
             limit: chunks[i].length,
             mode,
             concurrency: mode === "smtp" ? 4 : 12,
           },
-          { timeout: mode === "smtp" ? 180000 : 120000 },
+          { timeout: mode === "smtp" ? 180000 : 180000 },
         );
         parts.push(data);
       }

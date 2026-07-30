@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
-import dns from "node:dns/promises";
+import { Resolver } from "node:dns/promises";
 import net from "node:net";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
+
+// Explicit public DNS — Next/webpack + system resolver can fail silently on Windows
+const dnsResolver = new Resolver();
+dnsResolver.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
 
 const EMAIL_RE =
   /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
@@ -79,12 +83,22 @@ function createMxCache() {
     if (cache.has(domain)) return cache.get(domain);
     const p = (async () => {
       try {
-        const mx = await dns.resolveMx(domain);
+        const mx = await dnsResolver.resolveMx(domain);
         if (!Array.isArray(mx) || !mx.length) return null;
         mx.sort((a, b) => a.priority - b.priority);
         return mx;
-      } catch {
-        return null;
+      } catch (err) {
+        // one retry after short delay (transient Windows DNS flakes)
+        try {
+          await new Promise((r) => setTimeout(r, 150));
+          const mx = await dnsResolver.resolveMx(domain);
+          if (!Array.isArray(mx) || !mx.length) return null;
+          mx.sort((a, b) => a.priority - b.priority);
+          return mx;
+        } catch (err2) {
+          console.warn("[enrich] MX fail", domain, err2?.code || err?.code || err2?.message);
+          return null;
+        }
       }
     })();
     cache.set(domain, p);
@@ -97,7 +111,7 @@ function createSiteCache() {
 
   async function fetchHtml(url) {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 4500);
+      const timer = setTimeout(() => ctrl.abort(), 2500);
     try {
       const res = await fetch(url, {
         signal: ctrl.signal,
@@ -126,7 +140,8 @@ function createSiteCache() {
     if (cache.has(domain)) return cache.get(domain);
     const p = (async () => {
       const bases = [`https://${domain}`, `http://${domain}`];
-      const paths = ["", "/contact", "/contactez-nous", "/mentions-legales", "/about", "/equipe", "/team"];
+      // Keep scrape light — enough for mailto discovery without timing out bulk runs
+      const paths = ["", "/contact", "/contactez-nous", "/mentions-legales"];
       const found = new Set();
 
       for (const base of bases) {
@@ -139,6 +154,8 @@ function createSiteCache() {
           for (const m of mailto) found.add(m[1].toLowerCase());
           const emails = html.match(EMAIL_RE) || [];
           for (const e of emails) found.add(e.toLowerCase());
+          // Early exit if we already have a person-like address
+          if ([...found].some((e) => e.includes(".") || e.includes("_"))) break;
         }
         if (gotAny) break;
       }
@@ -406,7 +423,15 @@ export async function POST(request) {
       );
     }
 
-    const slice = leads.slice(0, limit);
+    const slice = leads.slice(0, limit).map((lead) => ({
+      FirstName: lead.FirstName || lead.firstName || lead.first_name || "",
+      LastName: lead.LastName || lead.lastName || lead.last_name || "",
+      Domain: lead.Domain || lead.domain || lead.website || lead.Website || "",
+      CompanyName:
+        lead.CompanyName || lead.company || lead.companyName || lead.Company || "",
+      LinkedinURL:
+        lead.LinkedinURL || lead.linkedin || lead.linkedinUrl || lead.LinkedIn || "",
+    }));
     const resolveMx = createMxCache();
     const scrapeSite = createSiteCache();
     const ctx = { mode, resolveMx, scrapeSite };
