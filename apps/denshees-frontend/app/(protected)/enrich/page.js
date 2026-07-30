@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import instance from "@/lib/axios";
 
 const CHUNK = 40;
 
@@ -144,10 +143,15 @@ export default function EnrichPage() {
 
       const parts = [];
       for (let i = 0; i < chunks.length; i++) {
-        setProgress(`Lot ${i + 1}/${chunks.length} (${parts.reduce((n, p) => n + (p.leads?.length || 0), 0)}/${totalWanted})`);
-        const { data } = await instance.post(
-          "/api/enrich",
-          {
+        setProgress(
+          `Lot ${i + 1}/${chunks.length} (${parts.reduce((n, p) => n + (p.leads?.length || 0), 0)}/${totalWanted})`,
+        );
+        // fetch natif : l'interceptor axios renvoie déjà response.data,
+        // et un `const { data }` cassait l'UI (résultats toujours vides).
+        const res = await fetch("/api/enrich", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
             leads: chunks[i].map((r) => ({
               FirstName: r.FirstName || r.firstName || r.first_name || "",
               LastName: r.LastName || r.lastName || r.last_name || "",
@@ -155,14 +159,24 @@ export default function EnrichPage() {
               CompanyName:
                 r.CompanyName || r.company || r.companyName || r.Company || "",
               LinkedinURL:
-                r.LinkedinURL || r.linkedin || r.linkedinUrl || r.LinkedIn || "",
+                r.LinkedinURL ||
+                r.linkedin ||
+                r.linkedinUrl ||
+                r.LinkedIn ||
+                "",
             })),
             limit: chunks[i].length,
             mode,
             concurrency: mode === "smtp" ? 4 : 12,
-          },
-          { timeout: mode === "smtp" ? 180000 : 180000 },
-        );
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.message || `Erreur HTTP ${res.status}`);
+        }
+        if (!data?.leads) {
+          throw new Error("Réponse enrich invalide (pas de leads)");
+        }
         parts.push(data);
       }
 
@@ -176,12 +190,18 @@ export default function EnrichPage() {
       };
       setResult(merged);
       setProgress("");
-      toast.success(
-        `Enrichi : ${merged.stats.withEmail}/${merged.stats.total} · confiance moy. ${merged.stats.avgConfidence}%`,
-      );
+      if (!merged.stats.withEmail) {
+        toast.error(
+          `0 email trouvé sur ${merged.stats.total} (domaines manquants ou MX KO)`,
+        );
+      } else {
+        toast.success(
+          `Enrichi : ${merged.stats.withEmail}/${merged.stats.total} · confiance moy. ${merged.stats.avgConfidence}%`,
+        );
+      }
     } catch (err) {
       console.error(err);
-      toast.error(err?.response?.data?.message || "Enrichissement échoué");
+      toast.error(err?.message || "Enrichissement échoué");
       setProgress("");
     } finally {
       setLoading(false);
