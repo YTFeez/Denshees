@@ -33,6 +33,11 @@ const sidebarLinks = [
     href: "/lists",
   },
   {
+    label: "Enrich",
+    icon: ChecklistNoteIcon,
+    href: "/enrich",
+  },
+  {
     label: "Settings",
     icon: SettingsIcon,
     href: "/settings",
