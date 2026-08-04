@@ -43,7 +43,7 @@ const csvSchema = z.array(
     .passthrough(),
 );
 
-// Inline editable cell — click to edit, blur/enter to save
+
 const EditableCell = ({ value, onChange }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -182,7 +182,7 @@ const ImportLeadsDialog = ({ open = false, setOpen, campaign }) => {
       return;
     }
     setColumns((prev) => [...prev, col]);
-    // Add empty value for the new column in every existing row
+
     setData((prev) => prev.map((row) => ({ ...row, [col]: "" })));
     setNewColName("");
   };

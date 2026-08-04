@@ -64,7 +64,7 @@ export function Sidebar({ onWidthChange }) {
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Check for mobile screen size
+
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -75,7 +75,7 @@ export function Sidebar({ onWidthChange }) {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Update parent component when width changes
+
   useEffect(() => {
     if (isMobile) {
       onWidthChange?.(0);
@@ -85,17 +85,17 @@ export function Sidebar({ onWidthChange }) {
     }
   }, [collapsed, isMobile, onWidthChange]);
 
-  // Check if a link is active based on the current pathname
+
   const isActive = (href) => {
-    // Exact match for dashboard
+
     if (href === "/dashboard" && pathname === "/dashboard") {
       return true;
     }
-    // For other routes, check if pathname starts with the href (for nested routes)
+
     return href !== "/dashboard" && pathname.startsWith(href);
   };
 
-  // Mobile bottom bar
+
   if (isMobile) {
     return (
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-black">
@@ -135,7 +135,7 @@ export function Sidebar({ onWidthChange }) {
     );
   }
 
-  // Desktop sidebar
+
   return (
     <div
       className={cn(

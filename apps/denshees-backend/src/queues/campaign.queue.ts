@@ -4,7 +4,7 @@ const campaignQueue = new Queue("campaignQueue", {
   connection: redisConnection,
 });
 
-// Prod default: every hour. Local tests: set CAMPAIGN_CRON_PATTERN="* * * * *" (every minute)
+
 const campaignCron =
   process.env.CAMPAIGN_CRON_PATTERN ||
   (process.env.NODE_ENV === "production" ? "0 * * * *" : "* * * * *");

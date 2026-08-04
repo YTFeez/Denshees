@@ -66,7 +66,7 @@ export async function PATCH(request, { params }) {
       data,
     });
 
-    // Handle multi-relation emails update
+    
     if (emails !== undefined && Array.isArray(emails)) {
       await prisma.campaignEmailCredential.deleteMany({
         where: { campaignId: id },

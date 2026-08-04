@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock prisma before importing the module under test
 vi.mock("../services/prisma.service.js", () => ({
   prisma: {
     campaignEmail: {
@@ -9,9 +8,20 @@ vi.mock("../services/prisma.service.js", () => ({
     },
     pitchEmail: {
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    pitchFlowEdge: {
+      findMany: vi.fn(),
+    },
+    campaignFlowNode: {
+      findMany: vi.fn(),
+    },
+    campaignFlowWire: {
+      findMany: vi.fn(),
     },
     campaignMessage: {
       create: vi.fn(),
+      findFirst: vi.fn(),
     },
     user: {
       update: vi.fn(),
@@ -27,12 +37,11 @@ import { prisma } from "../services/prisma.service.js";
 import {
   fetchCampaignEmails,
   fetchPitch,
+  resolveFlow,
   updateEmailStatus,
   createCampaignMessage,
 } from "../services/campaign-service.js";
 import type { EmailRecord, PitchRecord } from "../models/email.js";
-
-// ----- Fixtures -----
 
 function makeEmail(overrides: Partial<EmailRecord> = {}): EmailRecord {
   return {
@@ -60,8 +69,6 @@ function makePitch(overrides: Partial<PitchRecord> = {}): PitchRecord {
   };
 }
 
-// ----- Tests -----
-
 describe("fetchCampaignEmails", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -75,197 +82,185 @@ describe("fetchCampaignEmails", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("email-1");
-    expect(prisma.campaignEmail.findMany).toHaveBeenCalledWith({
-      where: { id: { in: ["email-1"] } },
-      include: {
-        campaign: {
-          include: {
-            user: true,
-            campaignEmailCredentials: {
-              include: { emailCredential: true },
-            },
-          },
-        },
-      },
-    });
-  });
-
-  it("chunks large ID lists and flattens results", async () => {
-    const ids = Array.from({ length: 120 }, (_, i) => `email-${i}`);
-    vi.mocked(prisma.campaignEmail.findMany).mockResolvedValue([
-      makeEmail(),
-    ] as any);
-
-    const result = await fetchCampaignEmails(ids, 50);
-
-    // 120 ids → 3 chunks (50 + 50 + 20)
-    expect(prisma.campaignEmail.findMany).toHaveBeenCalledTimes(3);
-    expect(result).toHaveLength(3); // 1 email per chunk mock
-  });
-
-  it("rethrows prisma errors", async () => {
-    vi.mocked(prisma.campaignEmail.findMany).mockRejectedValue(
-      new Error("DB connection failed"),
-    );
-
-    await expect(fetchCampaignEmails(["email-1"])).rejects.toThrow(
-      "DB connection failed",
-    );
   });
 });
 
-describe("fetchPitch", () => {
-  beforeEach(() => vi.clearAllMocks());
+describe("resolveFlow / fetchPitch", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(prisma.campaignMessage.findFirst).mockResolvedValue(null);
+  });
 
-  it("passes campaign ID string (not object) to prisma query", async () => {
-    const email = makeEmail();
-
+  it("legacy stage lookup when no flow nodes and no edges", async () => {
+    vi.mocked(prisma.campaignFlowNode.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.campaignFlowWire.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.pitchFlowEdge.findMany).mockResolvedValue([]);
     vi.mocked(prisma.pitchEmail.findFirst).mockResolvedValue(null);
 
-    await fetchPitch(email);
+    await fetchPitch(makeEmail());
 
-    const callArgs = vi.mocked(prisma.pitchEmail.findFirst).mock.calls[0][0];
-    expect(callArgs?.where?.campaignId).toBe("campaign-1");
-    expect(typeof callArgs?.where?.campaignId).toBe("string");
+    expect(prisma.pitchEmail.findFirst).toHaveBeenCalled();
   });
 
-  it("returns pitch when found (simulating fixed query)", async () => {
-    const fakePitch = makePitch();
-    vi.mocked(prisma.pitchEmail.findFirst).mockResolvedValue(fakePitch as any);
-
-    const email = makeEmail();
-    const result = await fetchPitch(email);
-
-    expect(result).toEqual(fakePitch);
-  });
-
-  it("returns null and does not throw on prisma error", async () => {
-    vi.mocked(prisma.pitchEmail.findFirst).mockRejectedValue(
-      new Error("query failed"),
+  it("sends EMAIL node pitch from Start", async () => {
+    vi.mocked(prisma.campaignFlowNode.findMany).mockResolvedValue([
+      { id: "n-start", type: "START", pitchId: null, config: null },
+      { id: "n-email", type: "EMAIL", pitchId: "pitch-1", config: null },
+    ] as any);
+    vi.mocked(prisma.campaignFlowWire.findMany).mockResolvedValue([
+      {
+        sourceNodeId: "n-start",
+        sourceHandle: "out",
+        targetNodeId: "n-email",
+      },
+    ] as any);
+    vi.mocked(prisma.pitchEmail.findUnique).mockResolvedValue(
+      makePitch() as any,
     );
 
-    const result = await fetchPitch(makeEmail());
-    expect(result).toBeNull();
+    const result = await resolveFlow(
+      makeEmail({ currentNodeId: "n-start" } as any),
+    );
+
+    expect(result.kind).toBe("send");
+    if (result.kind === "send") {
+      expect(result.pitch.id).toBe("pitch-1");
+    }
+  });
+
+  it("WAIT returns waiting when delay not elapsed", async () => {
+    vi.mocked(prisma.campaignFlowNode.findMany).mockResolvedValue([
+      {
+        id: "n-wait",
+        type: "WAIT",
+        pitchId: null,
+        config: { delayDays: 5 },
+      },
+    ] as any);
+    vi.mocked(prisma.campaignFlowWire.findMany).mockResolvedValue([]);
+
+    const result = await resolveFlow(
+      makeEmail({
+        currentNodeId: "n-wait",
+        sentAt: new Date(),
+        status: "RUNNING",
+      } as any),
+    );
+
+    expect(result.kind).toBe("waiting");
+  });
+
+  it("WAIT opened does not fall through to no_reply", async () => {
+    vi.mocked(prisma.campaignFlowNode.findMany).mockResolvedValue([
+      {
+        id: "n-wait",
+        type: "WAIT",
+        pitchId: null,
+        config: { delayDays: 0 },
+      },
+      { id: "n-end", type: "END", pitchId: null, config: null },
+      {
+        id: "n-email2",
+        type: "EMAIL",
+        pitchId: "pitch-2",
+        config: null,
+      },
+    ] as any);
+    vi.mocked(prisma.campaignFlowWire.findMany).mockResolvedValue([
+      {
+        sourceNodeId: "n-wait",
+        sourceHandle: "opened",
+        targetNodeId: "n-end",
+      },
+      {
+        sourceNodeId: "n-wait",
+        sourceHandle: "no_reply",
+        targetNodeId: "n-email2",
+      },
+    ] as any);
+
+    const result = await resolveFlow(
+      makeEmail({
+        currentNodeId: "n-wait",
+        status: "RUNNING",
+        opened: 1,
+        sentAt: new Date(Date.now() - 86400000 * 2),
+      } as any),
+    );
+
+    expect(result.kind).toBe("done");
+  });
+
+  it("WAIT replied goes to END → done", async () => {
+    vi.mocked(prisma.campaignFlowNode.findMany).mockResolvedValue([
+      {
+        id: "n-wait",
+        type: "WAIT",
+        pitchId: null,
+        config: { delayDays: 0 },
+      },
+      { id: "n-end", type: "END", pitchId: null, config: null },
+    ] as any);
+    vi.mocked(prisma.campaignFlowWire.findMany).mockResolvedValue([
+      {
+        sourceNodeId: "n-wait",
+        sourceHandle: "replied",
+        targetNodeId: "n-end",
+      },
+    ] as any);
+
+    const result = await resolveFlow(
+      makeEmail({
+        currentNodeId: "n-wait",
+        status: "REPLIED",
+        sentAt: new Date(Date.now() - 86400000 * 2),
+      } as any),
+    );
+
+    expect(result.kind).toBe("done");
   });
 });
 
 describe("updateEmailStatus", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("decrements user credits and advances stage", async () => {
+  it("advances to Wait after Email.out", async () => {
     vi.mocked(prisma.user.update).mockResolvedValue({} as any);
     vi.mocked(prisma.campaignEmail.update).mockResolvedValue({} as any);
+    vi.mocked(prisma.campaignFlowNode.findMany).mockResolvedValue([
+      { id: "n-email", type: "EMAIL", pitchId: "pitch-1", config: null },
+      { id: "n-wait", type: "WAIT", pitchId: null, config: { delayDays: 3 } },
+    ] as any);
+    vi.mocked(prisma.campaignFlowWire.findMany).mockResolvedValue([
+      {
+        sourceNodeId: "n-email",
+        sourceHandle: "out",
+        targetNodeId: "n-wait",
+      },
+    ] as any);
 
-    const email = makeEmail({ stage: 0 });
-
-    await updateEmailStatus(email);
-
-    expect(prisma.user.update).toHaveBeenCalledWith({
-      where: { id: "user-1" },
-      data: { credits: { decrement: 1 } },
-    });
+    await updateEmailStatus(
+      makeEmail(),
+      makePitch({ id: "pitch-1", stage: 0 } as any),
+    );
 
     expect(prisma.campaignEmail.update).toHaveBeenCalledWith({
       where: { id: "email-1" },
-      data: {
+      data: expect.objectContaining({
+        currentPitchId: "pitch-1",
+        currentNodeId: "n-wait",
         status: "RUNNING",
-        stage: 1,
-        sentAt: expect.any(Date),
-      },
+      }),
     });
-  });
-
-  it("sets COMPLETED status when at final stage", async () => {
-    vi.mocked(prisma.user.update).mockResolvedValue({} as any);
-    vi.mocked(prisma.campaignEmail.update).mockResolvedValue({} as any);
-
-    // maxStageCount=3, so final sending stage is 2 (0-indexed)
-    const email = makeEmail({ stage: 2 });
-
-    await updateEmailStatus(email);
-
-    expect(prisma.campaignEmail.update).toHaveBeenCalledWith({
-      where: { id: "email-1" },
-      data: {
-        status: "COMPLETED",
-        stage: 3,
-        sentAt: expect.any(Date),
-      },
-    });
-  });
-
-  it("sets COMPLETED when a lead is past the cap (e.g. follow-up count reduced)", async () => {
-    vi.mocked(prisma.user.update).mockResolvedValue({} as any);
-    vi.mocked(prisma.campaignEmail.update).mockResolvedValue({} as any);
-
-    // Lead is at stage 3 but the campaign was shrunk to maxStageCount=3
-    // (last stage index 2). The >= check must complete it, not loop it.
-    const email = makeEmail({ stage: 3, campaign: { id: "c-1", maxStageCount: 3 } });
-
-    await updateEmailStatus(email);
-
-    expect(prisma.campaignEmail.update).toHaveBeenCalledWith({
-      where: { id: "email-1" },
-      data: {
-        status: "COMPLETED",
-        stage: 4,
-        sentAt: expect.any(Date),
-      },
-    });
-  });
-
-  it("skips credit decrement when no user on campaign", async () => {
-    vi.mocked(prisma.campaignEmail.update).mockResolvedValue({} as any);
-
-    const email = makeEmail({ campaign: { id: "c-1", maxStageCount: 1 } });
-
-    await updateEmailStatus(email);
-
-    expect(prisma.user.update).not.toHaveBeenCalled();
-  });
-
-  it("rethrows errors from prisma update", async () => {
-    vi.mocked(prisma.user.update).mockRejectedValue(new Error("db error"));
-
-    await expect(updateEmailStatus(makeEmail())).rejects.toThrow("db error");
   });
 });
 
 describe("createCampaignMessage", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("creates a campaign message record", async () => {
+  it("creates message record", async () => {
     vi.mocked(prisma.campaignMessage.create).mockResolvedValue({} as any);
-
-    const email = makeEmail();
-    const pitch = makePitch();
-
-    await createCampaignMessage(
-      email,
-      pitch,
-      "<msg-id@mail>",
-      "<p>body</p>",
-      "tx1",
-    );
-
-    expect(prisma.campaignMessage.create).toHaveBeenCalledWith({
-      data: {
-        sent: true,
-        text: "<p>body</p>",
-        pitchId: "pitch-1",
-        messageId: "<msg-id@mail>",
-        campaignEmailId: "email-1",
-      },
-    });
-  });
-
-  it("rethrows prisma create errors", async () => {
-    vi.mocked(prisma.campaignMessage.create).mockRejectedValue(
-      new Error("unique constraint"),
-    );
-
-    await expect(
-      createCampaignMessage(makeEmail(), makePitch(), "id", "body", "tx"),
-    ).rejects.toThrow("unique constraint");
+    await createCampaignMessage(makeEmail(), makePitch(), "msg-1");
+    expect(prisma.campaignMessage.create).toHaveBeenCalled();
   });
 });

@@ -13,7 +13,7 @@ export async function GET(request) {
   }
 
   try {
-    // Use UTC dates throughout to avoid timezone mismatches
+    
     const todayUTCStr = new Date().toISOString().split("T")[0];
     const todayUTC = new Date(todayUTCStr + "T00:00:00.000Z");
 
@@ -29,7 +29,7 @@ export async function GET(request) {
       orderBy: { created: "asc" },
     });
 
-    // Group by UTC date
+    
     const countsByDate = {};
     for (const record of records) {
       const date = record.created.toISOString().split("T")[0];
@@ -38,7 +38,7 @@ export async function GET(request) {
       }
     }
 
-    // Fill in every UTC day from one month ago to today (inclusive)
+    
     const data = [];
     for (
       let d = new Date(oneMonthAgo);

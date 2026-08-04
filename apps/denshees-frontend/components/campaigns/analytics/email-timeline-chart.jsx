@@ -45,7 +45,7 @@ function calculateFutureEmails(contacts, campaign) {
   const maxStageCount = campaign?.maxStageCount || 1;
   const activeDays = campaign?.activeDays;
 
-  // Total daily capacity = sum of each credential's dailyLimit (default 20 each)
+
   const creds = campaign?.campaignEmailCredentials || [];
   const totalDailyCapacity =
     creds.length > 0
@@ -91,7 +91,7 @@ function calculateFutureEmails(contacts, campaign) {
     }
   });
 
-  // Cap each day by totalDailyCapacity and carry overflow to the next active day
+
   if (totalDailyCapacity) {
     const sortedDates = Object.keys(futureCounts).sort();
     for (let i = 0; i < sortedDates.length; i++) {

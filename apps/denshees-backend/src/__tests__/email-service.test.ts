@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// ----- Mocks -----
-
 vi.mock("../services/prisma.service.js", () => ({
   prisma: {
     campaignEmail: { update: vi.fn() },
@@ -28,7 +26,7 @@ vi.mock("../utils/credential-service.js", () => ({
 }));
 
 vi.mock("../services/campaign-service.js", () => ({
-  fetchPitch: vi.fn(),
+  resolveFlow: vi.fn(),
   updateEmailStatus: vi.fn(),
   createCampaignMessage: vi.fn(),
 }));
@@ -44,7 +42,7 @@ vi.mock("html-to-text", () => ({
 import { prisma } from "../services/prisma.service.js";
 import { getEmailTransporter } from "../utils/credential-service.js";
 import {
-  fetchPitch,
+  resolveFlow,
   updateEmailStatus,
   createCampaignMessage,
 } from "../services/campaign-service.js";
@@ -52,7 +50,15 @@ import { getCredentialSentCount } from "../services/credential-service.js";
 import { sendCampaignEmail } from "../services/email-service.js";
 import type { EmailRecord } from "../models/email.js";
 
-// ----- Helpers -----
+const sendResult = {
+  kind: "send" as const,
+  pitch: {
+    id: "pitch-1",
+    subject: "Hello {{name}}",
+    message: "<p>Hi {{name}}</p>",
+  },
+  emailNodeId: "node-email-1",
+};
 
 function makeCred(overrides: Record<string, any> = {}) {
   return {
@@ -90,15 +96,8 @@ const mockTransporter = {
   sendMail: vi.fn().mockResolvedValue({ messageId: "<msg-123@smtp>" }),
 };
 
-/**
- * Sets up the "happy path" mocks so a test can override one aspect at a time.
- */
 function setupHappyPath() {
-  vi.mocked(fetchPitch).mockResolvedValue({
-    id: "pitch-1",
-    subject: "Hello {{name}}",
-    message: "<p>Hi {{name}}</p>",
-  });
+  vi.mocked(resolveFlow).mockResolvedValue(sendResult);
   vi.mocked(getCredentialSentCount).mockResolvedValue(0);
   vi.mocked(getEmailTransporter).mockReturnValue(mockTransporter as any);
   vi.mocked(prisma.campaignEmail.update).mockResolvedValue({} as any);
@@ -107,26 +106,24 @@ function setupHappyPath() {
   mockTransporter.sendMail.mockResolvedValue({ messageId: "<msg-123@smtp>" });
 }
 
-// ----- Tests -----
-
 describe("sendCampaignEmail", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setupHappyPath();
   });
 
-  // ================== HAPPY PATH ==================
+  
 
   it("sends email successfully on happy path", async () => {
     await sendCampaignEmail(makeEmail(), "tx-test");
 
-    expect(fetchPitch).toHaveBeenCalled();
+    expect(resolveFlow).toHaveBeenCalled();
     expect(mockTransporter.sendMail).toHaveBeenCalled();
     expect(updateEmailStatus).toHaveBeenCalled();
     expect(createCampaignMessage).toHaveBeenCalled();
   });
 
-  // ================== FAILED: Invalid recipient email ==================
+  
 
   it("marks FAILED when recipient email is missing", async () => {
     const email = makeEmail({ email: null });
@@ -137,7 +134,7 @@ describe("sendCampaignEmail", () => {
       where: { id: "email-1" },
       data: { status: "FAILED" },
     });
-    expect(fetchPitch).not.toHaveBeenCalled();
+    expect(resolveFlow).not.toHaveBeenCalled();
   });
 
   it("marks FAILED when recipient email is invalid", async () => {
@@ -151,21 +148,29 @@ describe("sendCampaignEmail", () => {
     });
   });
 
-  // ================== FAILED: No pitch found ==================
+  
 
-  it("marks FAILED when no pitch is found for campaign/stage", async () => {
-    vi.mocked(fetchPitch).mockResolvedValue(null);
+  it("completes when flow resolves to done (no more sends)", async () => {
+    vi.mocked(resolveFlow).mockResolvedValue({ kind: "done" });
 
     await sendCampaignEmail(makeEmail(), "tx");
 
     expect(prisma.campaignEmail.update).toHaveBeenCalledWith({
       where: { id: "email-1" },
-      data: { status: "FAILED" },
+      data: { status: "COMPLETED" },
     });
     expect(mockTransporter.sendMail).not.toHaveBeenCalled();
   });
 
-  // ================== FAILED: No credentials on campaign ==================
+  it("returns early when flow is waiting", async () => {
+    vi.mocked(resolveFlow).mockResolvedValue({ kind: "waiting" });
+
+    await sendCampaignEmail(makeEmail(), "tx");
+
+    expect(mockTransporter.sendMail).not.toHaveBeenCalled();
+  });
+
+  
 
   it("marks FAILED when campaign has no email credentials", async () => {
     const email = makeEmail({
@@ -186,21 +191,21 @@ describe("sendCampaignEmail", () => {
     });
   });
 
-  // ================== NOT FAILED: All creds at daily limit (stage 0) ==================
+  
 
   it("returns early (no FAILED) when all credentials at daily limit for stage 0", async () => {
     vi.mocked(getCredentialSentCount).mockResolvedValue(100);
 
     await sendCampaignEmail(makeEmail(), "tx");
 
-    // Should NOT mark as FAILED — just returns
+    
     expect(prisma.campaignEmail.update).not.toHaveBeenCalledWith(
       expect.objectContaining({ data: { status: "FAILED" } }),
     );
     expect(mockTransporter.sendMail).not.toHaveBeenCalled();
   });
 
-  // ================== FAILED: No saved cred for follow-up (stage > 0) ==================
+  
 
   it("marks FAILED for follow-up when credId is missing", async () => {
     const email = makeEmail({
@@ -241,7 +246,7 @@ describe("sendCampaignEmail", () => {
     });
   });
 
-  // ================== NOT FAILED: Follow-up cred at daily limit ==================
+  
 
   it("returns early (no FAILED) when follow-up credential at daily limit", async () => {
     vi.mocked(getCredentialSentCount).mockResolvedValue(100);
@@ -253,13 +258,13 @@ describe("sendCampaignEmail", () => {
 
     await sendCampaignEmail(email, "tx");
 
-    // The code does NOT mark FAILED here — just returns with no status update
+    
     expect(prisma.campaignEmail.update).not.toHaveBeenCalledWith(
       expect.objectContaining({ data: { status: "FAILED" } }),
     );
   });
 
-  // ================== FAILED: Invalid/incomplete credential ==================
+  
 
   it("marks FAILED when credential has no username", async () => {
     const email = makeEmail({
@@ -303,21 +308,21 @@ describe("sendCampaignEmail", () => {
     });
   });
 
-  // ================== NOT FAILED: No transporter ==================
+  
 
   it("returns early (no FAILED) when no transporter found", async () => {
     vi.mocked(getEmailTransporter).mockReturnValue(null);
 
     await sendCampaignEmail(makeEmail(), "tx");
 
-    // Silently returns — no FAILED status set
+    
     expect(prisma.campaignEmail.update).not.toHaveBeenCalledWith(
       expect.objectContaining({ data: { status: "FAILED" } }),
     );
     expect(mockTransporter.sendMail).not.toHaveBeenCalled();
   });
 
-  // ================== FAILED: sendMail EENVELOPE error ==================
+  
 
   it("marks FAILED on EENVELOPE sendMail error", async () => {
     const envelopeError = Object.assign(new Error("Recipient rejected"), {
@@ -333,7 +338,7 @@ describe("sendCampaignEmail", () => {
     });
   });
 
-  // ================== NOT FAILED: Rate limit error ==================
+  
 
   it("does NOT mark FAILED on rate limit error (retryable)", async () => {
     const rateLimitError = Object.assign(new Error("Rate limited"), {
@@ -345,13 +350,13 @@ describe("sendCampaignEmail", () => {
 
     await sendCampaignEmail(makeEmail(), "tx");
 
-    // Email status should NOT be updated — left for retry
+    
     expect(prisma.campaignEmail.update).not.toHaveBeenCalledWith(
       expect.objectContaining({ data: { status: "FAILED" } }),
     );
   });
 
-  // ================== FAILED: Generic sendMail error ==================
+  
 
   it("marks FAILED on generic sendMail errors", async () => {
     mockTransporter.sendMail.mockRejectedValue(
@@ -366,19 +371,18 @@ describe("sendCampaignEmail", () => {
     });
   });
 
-  // ================== NOT FAILED: Outer catch ==================
+  
 
   it("does NOT mark FAILED on unexpected outer error", async () => {
-    // Force an unexpected error before any status update logic
-    vi.mocked(fetchPitch).mockRejectedValue(new Error("unexpected crash"));
+    vi.mocked(resolveFlow).mockRejectedValue(new Error("unexpected crash"));
 
     await sendCampaignEmail(makeEmail(), "tx");
 
-    // The outer catch only logs — does not update status
+    
     expect(prisma.campaignEmail.update).not.toHaveBeenCalled();
   });
 
-  // ================== Tracking pixel ==================
+  
 
   it("adds tracking pixel when isTrackingEnabled is true", async () => {
     const email = makeEmail({
@@ -404,19 +408,19 @@ describe("sendCampaignEmail", () => {
     expect(sendCall.html).not.toContain("tracking/open");
   });
 
-  // ================== Credential selection for stage 0 ==================
+  
 
   it("saves selected credential to email record for stage 0", async () => {
     await sendCampaignEmail(makeEmail(), "tx");
 
-    // First update call is saving the credId
+    
     expect(prisma.campaignEmail.update).toHaveBeenCalledWith({
       where: { id: "email-1" },
       data: { credId: "cred-1" },
     });
   });
 
-  // ================== Follow-up threading ==================
+  
 
   it("adds threading headers for follow-up emails (stage > 0)", async () => {
     vi.mocked(prisma.campaignMessage.findFirst).mockResolvedValue({

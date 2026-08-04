@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-// Explicit public DNS — Next/webpack + system resolver can fail silently on Windows
+
 const dnsResolver = new Resolver();
 dnsResolver.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
 
@@ -154,7 +154,7 @@ function createSiteCache() {
           for (const m of mailto) found.add(m[1].toLowerCase());
           const emails = html.match(EMAIL_RE) || [];
           for (const e of emails) found.add(e.toLowerCase());
-          // Early exit if we already have a person-like address
+          
           if ([...found].some((e) => e.includes(".") || e.includes("_"))) break;
         }
         if (gotAny) break;
@@ -319,7 +319,7 @@ async function enrichLead(lead, ctx) {
   const mxHost = mx[0].exchange;
   const candidates = buildCandidates(firstName, lastName, domain);
 
-  // 1) Website scrape — highest confidence when name matches
+  
   if (mode !== "pattern") {
     try {
       const siteEmails = await scrapeSite(domain);
@@ -337,7 +337,7 @@ async function enrichLead(lead, ctx) {
         };
       }
     } catch {
-      /* continue */
+      
     }
   }
 
@@ -351,7 +351,7 @@ async function enrichLead(lead, ctx) {
     };
   }
 
-  // 2) Optional SMTP (often blocked on consumer ISP)
+  
   if (mode === "smtp") {
     let best = null;
     for (const email of candidates.slice(0, 2)) {
@@ -389,7 +389,7 @@ async function enrichLead(lead, ctx) {
     };
   }
 
-  // 3) Default: pattern + MX = actionable / conclusive for cold email prep
+  
   const email = candidates[0];
   const isFrPattern = email.startsWith(`${slugifyName(firstName)}.${slugifyName(lastName)}@`);
   return {
@@ -408,7 +408,7 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const leads = Array.isArray(body?.leads) ? body.leads : [];
-    // mode: mx (default) | pattern | smtp
+    
     let mode = String(body?.mode || "").toLowerCase();
     if (!mode) mode = body?.verify ? "smtp" : "mx";
     if (!["mx", "pattern", "smtp"].includes(mode)) mode = "mx";

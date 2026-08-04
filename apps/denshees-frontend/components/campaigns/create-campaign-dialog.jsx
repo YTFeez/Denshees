@@ -22,8 +22,7 @@ import { useTour } from "@/components/tour/tour-provider";
 
 export default function CreateCampaignDialog({ children }) {
   const router = useRouter();
-  // A modal dialog traps focus and blocks pointer events outside itself,
-  // which would freeze the onboarding tour's tooltip. Non-modal while touring.
+
   const { isTourActive } = useTour();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -61,10 +60,7 @@ export default function CreateCampaignDialog({ children }) {
     }
   };
 
-  // While the tour is active its tooltip lives outside the dialog, so Radix's
-  // outside-interaction dismissal (pointer/focus/escape) would close the dialog
-  // the moment the tooltip takes focus or its Next button is clicked. Block
-  // dismissal during the tour; handleCreate still closes it via setOpen.
+
   const handleOpenChange = (next) => {
     if (isTourActive && !next) return;
     setOpen(next);

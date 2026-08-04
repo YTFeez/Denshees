@@ -19,7 +19,7 @@ export async function GET(request) {
 
     const userId = currUser.userId;
 
-    // Compute dashboard stats via aggregates
+    
     const [totalContacts, totalCampaigns, emailsSent, responses] =
       await Promise.all([
         prisma.campaignEmail.count({
@@ -42,14 +42,14 @@ export async function GET(request) {
         }),
       ]);
 
-    // Fetch recent campaigns (limit to 6)
+    
     const recentCampaigns = await prisma.campaign.findMany({
       where: { userId, deleted: false },
       orderBy: { created: "desc" },
       take: 6,
     });
 
-    // For each recent campaign, compute stats
+    
     const formattedRecentCampaigns = await Promise.all(
       recentCampaigns.map(async (campaign) => {
         const [stagesSum, openedSum] = await Promise.all([
@@ -75,10 +75,10 @@ export async function GET(request) {
       }),
     );
 
-    // Fetch recent activities
+    
     const activities = [];
 
-    // 1. Recent email sends
+    
     try {
       const recentSends = await prisma.campaignMessage.findMany({
         where: {

@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { Navbar } from "@/components/navbar";
-import AgentChat from "@/components/agent-chat";
 import useAuthStore from "@/store/auth.store";
 import { TourProvider } from "@/components/tour/tour-provider";
+
+const AgentChat = dynamic(() => import("@/components/agent-chat"), {
+  ssr: false,
+  loading: () => null,
+});
 
 export default function ProtectedLayout({ children }) {
   const router = useRouter();
@@ -28,7 +33,13 @@ export default function ProtectedLayout({ children }) {
   }, [mounted, isAuthenticated, user, clearAuth, router]);
 
   if (!mounted || !isAuthenticated || !user || !user.isSetup) {
-    return null;
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-sm text-gray-600 border border-black bg-white px-4 py-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+          Chargement…
+        </p>
+      </div>
+    );
   }
 
   return (

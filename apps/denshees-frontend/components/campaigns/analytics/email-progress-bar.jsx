@@ -20,15 +20,15 @@ const EmailProgressBar = ({
   const openedRef = useRef(null);
   const repliedRef = useRef(null);
 
-  // Calculate percentages with a minimum to ensure visibility
+
   const sentPercentage = Math.max((sentEmails / totalEmails) * 100, 0.5);
   const openedPercentage = Math.max((openedEmails / totalEmails) * 100, 0.5);
   const repliedPercentage = Math.max((repliedEmails / totalEmails) * 100, 0.5);
 
-  // Animate the progress bars on mount if animation is enabled
+
   useEffect(() => {
     if (!animate) {
-      // If animation is disabled, set widths immediately
+
       if (sentRef.current) sentRef.current.style.width = `${sentPercentage}%`;
       if (openedRef.current)
         openedRef.current.style.width = `${openedPercentage}%`;
@@ -143,7 +143,7 @@ const EmailProgressBar = ({
   );
 };
 
-// Example usage component
+
 export function EmailProgressExample() {
   return (
     <div className="w-full max-w-2xl mx-auto my-8">

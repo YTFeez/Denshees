@@ -36,7 +36,7 @@ export async function POST(request) {
       );
     }
 
-    // Proxy the SSE stream through to the client
+    
     return new Response(res.body, {
       headers: {
         "Content-Type": "text/event-stream",

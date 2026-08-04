@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { jwtDecode } from "jwt-decode";
 import prisma from "@/lib/prisma";
 
-// Marks the product walkthrough (react-joyride tour) as done for the user so it
-// never shows again — called when the tour is completed, skipped, or closed.
+
+
 export async function POST(request) {
   const token = request.headers.get("authorization");
 

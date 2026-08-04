@@ -20,7 +20,7 @@ import { remove } from "@/lib/apis";
 const DataTableActionsMenu = ({ obj }) => {
   const { id, name, campaignId, onEdit, onDelete } = obj || {};
 
-  // Setup mutation for deleting a lead
+
   const { trigger: deleteLead } = useSWRMutation("/api/lead/delete", remove, {
     onSuccess: () => {
       toast.success(`Lead ${name} removed successfully`);

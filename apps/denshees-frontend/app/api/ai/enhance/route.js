@@ -29,7 +29,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "User not found" }, { status: 401 });
     }
 
-    // Send request to OpenAI API for text enhancement
+    
     console.log(`[API] Sending enhancement request to OpenAI, type: ${type}`);
 
     const prompts = {

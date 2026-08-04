@@ -48,7 +48,7 @@ export async function POST(request) {
       ...conversationHistory,
     ];
 
-    // Inject current leads context so the AI can reference them for edits
+    
     if (currentLeads && currentLeads.length > 0) {
       messages.push({
         role: "system",

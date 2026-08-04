@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// ----- Mocks -----
+
 
 vi.mock("../utils/logger.js", () => ({ log: vi.fn() }));
 
 vi.mock("../utils/helpers.js", () => ({
-  delay: vi.fn().mockResolvedValue(undefined), // no-op delay for fast tests
+  delay: vi.fn().mockResolvedValue(undefined), 
 }));
 
 vi.mock("../utils/credential-service.js", () => ({
@@ -35,7 +35,7 @@ import { removeEnqueuedEmailIds } from "../queues/batch-email.queue.js";
 import { processEmailBatchJob } from "../jobs/batch-emails.js";
 import type { EmailRecord } from "../models/email.js";
 
-// ----- Helpers -----
+
 
 function makeEmail(overrides: Partial<any> = {}): EmailRecord {
   return {
@@ -67,7 +67,7 @@ function makeEmail(overrides: Partial<any> = {}): EmailRecord {
   } as any;
 }
 
-// ----- Tests -----
+
 
 describe("processEmailBatchJob", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -127,7 +127,7 @@ describe("processEmailBatchJob", () => {
     const result = await processEmailBatchJob(["e-1", "e-2"]);
 
     expect(sendCampaignEmail).toHaveBeenCalledTimes(2);
-    // First email threw, so only the second is in results
+    
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("e-2");
   });
@@ -142,7 +142,7 @@ describe("processEmailBatchJob", () => {
 
     await processEmailBatchJob(["e-1", "e-2"]);
 
-    // Both emails processed (all grouped together under "unassigned")
+    
     expect(sendCampaignEmail).toHaveBeenCalledTimes(2);
   });
 

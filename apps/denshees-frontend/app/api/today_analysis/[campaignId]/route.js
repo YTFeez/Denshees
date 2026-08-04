@@ -5,7 +5,7 @@ export async function GET(request, { params }) {
   const { campaignId } = params;
 
   try {
-    // Compute current stats: count of emails per stage + total opened
+    
     const campaignEmails = await prisma.campaignEmail.findMany({
       where: { campaignId },
       select: { stage: true, opened: true },

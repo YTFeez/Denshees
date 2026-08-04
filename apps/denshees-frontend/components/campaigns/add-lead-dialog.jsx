@@ -24,10 +24,7 @@ import fetcher from "@/lib/fetcher";
 import instance from "@/lib/axios";
 import { revalidateCampaignLeadExtras } from "@/lib/revalidate-leads";
 
-/**
- * Extract unique personalization variable names from pitch messages and subjects.
- * Matches patterns like {{variable}} and {{variable|"fallback"}}
- */
+
 function extractVariablesFromPitches(pitches) {
   if (!pitches?.length) return [];
   const variableRegex = /\{\{(\w+)(?:\|[^}]*)?\}\}/g;
@@ -43,7 +40,7 @@ function extractVariablesFromPitches(pitches) {
       }
     }
   }
-  // Filter out built-in variables that are already covered by the name/email fields
+
   const builtIn = new Set(["name", "email"]);
   return [...vars].filter((v) => !builtIn.has(v));
 }
@@ -78,11 +75,11 @@ const AddLeadDialog = ({ open = false, setOpen, campaign, onSuccess }) => {
   const [verifyStatus, setVerifyStatus] = useState(null); // null | "loading" | result object
   const defaultsApplied = useRef(false);
 
-  // Fetch user account to check if MillionVerifier key is configured
+
   const { data: accountData } = useSWR(open ? "/api/account" : null, fetcher);
   const hasVerifierKey = !!accountData?.millionVerifierApiKey;
 
-  // Reset verification when email changes
+
   useEffect(() => {
     setVerifyStatus(null);
   }, [leadData.email]);
@@ -101,13 +98,13 @@ const AddLeadDialog = ({ open = false, setOpen, campaign, onSuccess }) => {
     }
   };
 
-  // Fetch pitches to extract personalization variables
+
   const { data: pitchesData } = useSWR(
     campaign ? `/api/pitches?campaign=${campaign}` : null,
     fetcher,
   );
 
-  // Fetch contacts to get the last personalization as default
+
   const { data: contactsData } = useSWR(
     open && campaign ? `/api/contacts?campaign=${campaign}` : null,
     fetcher,
@@ -129,13 +126,13 @@ const AddLeadDialog = ({ open = false, setOpen, campaign, onSuccess }) => {
     }
   }, [open]);
 
-  // Extract unique variable names from all pitch messages/subjects
+
   const suggestedVariables = useMemo(
     () => extractVariablesFromPitches(pitchesData?.items),
     [pitchesData],
   );
 
-  // Variables that haven't been added yet
+
   const unusedVariables = useMemo(
     () => suggestedVariables.filter((v) => !personalization.hasOwnProperty(v)),
     [suggestedVariables, personalization],
@@ -167,11 +164,11 @@ const AddLeadDialog = ({ open = false, setOpen, campaign, onSuccess }) => {
     e.preventDefault();
 
     try {
-      // Validate the form data
+
       leadSchema.parse(leadData);
       setFormError(null);
 
-      // Add the lead
+
       await trigger({
         contacts: [
           {
@@ -182,7 +179,7 @@ const AddLeadDialog = ({ open = false, setOpen, campaign, onSuccess }) => {
         campaign,
       });
 
-      // Reset form
+
       setLeadData({ name: "", email: "" });
       setPersonalization({});
     } catch (error) {

@@ -6,12 +6,7 @@ import { GoogleLogin } from "@react-oauth/google";
 import { toast } from "sonner";
 import useAuthStore from "@/store/auth.store";
 
-/**
- * Renders the Google Sign-In button. On success it sends the Google ID token
- * (credentialResponse.credential) to our /api/auth/google route, which verifies
- * it and returns our own { user, token }. Used on both login and signup — the
- * backend creates the account on first sign-in, so the flow is identical.
- */
+
 export default function GoogleButton() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -60,8 +55,7 @@ export default function GoogleButton() {
   );
 }
 
-// Lightweight loading placeholder so the button area doesn't collapse while the
-// request is in flight (GoogleLogin renders its own button otherwise).
+
 function LoadingPlaceholder() {
   return (
     <div className="h-10 w-[320px] flex items-center justify-center border border-gray-300 bg-white text-sm text-gray-500">

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-// Sync read from localStorage to avoid async hydration delay
+
 function getInitialState() {
   if (typeof window === "undefined") {
     return { user: null, token: null, isAuthenticated: false };
@@ -20,7 +20,7 @@ function getInitialState() {
       }
     }
   } catch (e) {
-    // ignore
+    
   }
   return { user: null, token: null, isAuthenticated: false };
 }
@@ -34,7 +34,7 @@ const useAuthStore = create(
       token: initial.token,
       isAuthenticated: initial.isAuthenticated,
 
-      // Set user data after successful authentication
+      
       setAuth: ({ user, token }) => {
         set({
           user,
@@ -43,7 +43,7 @@ const useAuthStore = create(
         });
       },
 
-      // Clear auth data on logout
+      
       clearAuth: () => {
         set({
           user: null,
@@ -52,7 +52,7 @@ const useAuthStore = create(
         });
       },
 
-      // Update user data (for profile updates)
+      
       updateUser: (userData) => {
         set((state) => ({
           user: { ...state.user, ...userData },

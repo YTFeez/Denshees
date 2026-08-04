@@ -1,10 +1,10 @@
 import { create } from "zustand";
 
 const useCampaignStore = create((set) => ({
-  // Campaign data
+  
   currentCampaign: null,
 
-  // Leads/contacts data
+  
   leads: [],
   totalLeads: 0,
   currentPage: 1,

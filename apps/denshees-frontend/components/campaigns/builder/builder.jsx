@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -8,6 +8,9 @@ import {
   Controls,
   MiniMap,
   Panel,
+  useNodesState,
+  useEdgesState,
+  addEdge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import useSWR from "swr";
@@ -16,13 +19,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import fetcher from "@/lib/fetcher";
 import { patch, post, remove } from "@/lib/apis";
 import UpdateTemplate from "@/components/campaigns/builder/update-template";
-import StartNode from "@/components/campaigns/builder/flow/nodes/start-node";
-import EmailNode from "@/components/campaigns/builder/flow/nodes/email-node";
-import DelayNode from "@/components/campaigns/builder/flow/nodes/delay-node";
-import AddNode from "@/components/campaigns/builder/flow/nodes/add-node";
-import OutcomeNode from "@/components/campaigns/builder/flow/nodes/outcome-node";
-import { useCampaignFlow } from "@/components/campaigns/builder/flow/use-campaign-flow";
+import BlockStart from "@/components/campaigns/builder/flow/nodes/block-start";
+import BlockEmail from "@/components/campaigns/builder/flow/nodes/block-email";
+import BlockWait from "@/components/campaigns/builder/flow/nodes/block-wait";
+import BlockEnd from "@/components/campaigns/builder/flow/nodes/block-end";
+import { useBlockFlow } from "@/components/campaigns/builder/flow/use-block-flow";
 import AutoFit from "@/components/campaigns/builder/flow/auto-fit";
+import { BLOCK_HANDLES } from "@/components/campaigns/builder/flow/block-meta";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,27 +38,29 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const nodeTypes = {
-  start: StartNode,
-  email: EmailNode,
-  delay: DelayNode,
-  add: AddNode,
-  outcome: OutcomeNode,
+  blockStart: BlockStart,
+  blockEmail: BlockEmail,
+  blockWait: BlockWait,
+  blockEnd: BlockEnd,
 };
 
-const percent = (part, whole) =>
-  whole > 0 ? Math.round((part / whole) * 100) : 0;
+const PALETTE = [
+  { type: "EMAIL", label: "+ Email" },
+  { type: "WAIT", label: "+ Wait" },
+  { type: "END", label: "+ End" },
+];
 
 const errorMessage = (error, fallback) =>
-  error?.response?.data?.message || fallback;
+  error?.response?.data?.message || error?.message || fallback;
 
 const Builder = ({ campaign }) => {
-  const pitchesKey = `/api/pitches?campaign=${campaign}`;
+  const flowKey = `/api/flow?campaign=${campaign}`;
   const {
-    data: pitchData,
-    isLoading: pitchesLoading,
-    mutate: mutatePitches,
-  } = useSWR(pitchesKey, fetcher);
-  const { data: contactsData, isLoading: contactsLoading } = useSWR(
+    data: flowData,
+    isLoading,
+    mutate,
+  } = useSWR(flowKey, fetcher);
+  const { data: contactsData } = useSWR(
     `/api/contacts?campaign=${campaign}`,
     fetcher,
   );
@@ -64,156 +69,229 @@ const Builder = ({ campaign }) => {
   const [pendingDelete, setPendingDelete] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const pitches = useMemo(() => pitchData?.items ?? [], [pitchData]);
+  const flowNodes = flowData?.nodes || [];
+  const wires = flowData?.wires || [];
+  const pitches = flowData?.pitches || [];
 
-  const stats = useMemo(() => {
-    const contacts = contactsData ?? [];
-    const totalContacts = contacts.length;
+  const stats = useMemo(
+    () => ({
+      totalContacts: (contactsData || []).length,
+    }),
+    [contactsData],
+  );
 
-    const contactsPerStage = {};
-    const repliesPerStage = {};
-
-    contacts.forEach((contact) => {
-      const stage = contact.stage ?? 0;
-      contactsPerStage[stage] = (contactsPerStage[stage] ?? 0) + 1;
-
-      if (contact.status === "REPLIED") {
-        const repliedStage = contact.replied_at_stage ?? stage;
-        repliesPerStage[repliedStage] = (repliesPerStage[repliedStage] ?? 0) + 1;
-      }
-    });
-
-    const replied = contacts.filter((c) => c.status === "REPLIED").length;
-    const opened = contacts.filter(
-      (c) => c.opened > 0 && c.status !== "REPLIED",
-    ).length;
-    const noReply = contacts.filter(
-      (c) =>
-        c.stage >= (pitches.length || 1) &&
-        c.status !== "REPLIED" &&
-        c.opened === 0,
-    ).length;
-
-    return {
-      totalContacts,
-      contactsPerStage,
-      repliesPerStage,
-      outcomes: {
-        replied: { count: replied, percentage: percent(replied, totalContacts) },
-        opened: { count: opened, percentage: percent(opened, totalContacts) },
-        "no-reply": {
-          count: noReply,
-          percentage: percent(noReply, totalContacts),
-        },
-      },
-    };
-  }, [contactsData, pitches.length]);
-
-  const handleAddPitch = useCallback(
-    async (option = {}) => {
-      const kind = option.kind || "followup";
-      const delayDays =
-        option.delayDays !== undefined && option.delayDays !== null
-          ? Number(option.delayDays)
-          : kind === "breakup"
-            ? 4
-            : 3;
-
+  const handleAddBlock = useCallback(
+    async (type) => {
       setBusy(true);
       try {
-        const pitch = await post(`/api/pitches/create?campaign=${campaign}`, {
-          arg: { kind, delayDays },
+        const count = flowNodes.filter((n) => n.type === type).length;
+        await post("/api/flow/nodes", {
+          arg: {
+            campaignId: campaign,
+            type,
+            flowX: 180 + count * 40,
+            flowY: 320 + count * 30,
+            delayDays: type === "WAIT" ? 3 : 1,
+          },
         });
-        await mutatePitches();
-        if (pitch?.id) {
-          setSelectedPitch(pitch);
-        }
-        toast.success(
-          kind === "breakup"
-            ? `Break-up added · wait ${delayDays} days`
-            : `Follow-up added · wait ${delayDays} days`,
-        );
+        await mutate();
+        toast.success(`${type} block added`);
       } catch (error) {
         toast.error(errorMessage(error, "Could not add block"));
       } finally {
         setBusy(false);
       }
     },
-    [campaign, mutatePitches],
+    [campaign, flowNodes, mutate],
   );
 
-  const confirmDeletePitch = useCallback(async () => {
-    const pitch = pendingDelete;
-    if (!pitch) return;
-
-    setPendingDelete(null);
-    setBusy(true);
-    try {
-      await remove(`/api/pitches/delete?pitch=${pitch.id}`, { arg: {} });
-      if (selectedPitch?.id === pitch.id) setSelectedPitch(null);
-      await mutatePitches();
-      toast.success("Follow-up removed");
-    } catch (error) {
-      toast.error(errorMessage(error, "Could not remove follow-up"));
-    } finally {
-      setBusy(false);
-    }
-  }, [pendingDelete, selectedPitch, mutatePitches]);
-
   const handleSaveDelay = useCallback(
-    async (pitch, delayDays) => {
-      const optimistic = {
-        ...pitchData,
-        items: pitches.map((item) =>
-          item.id === pitch.id ? { ...item, delayDays } : item,
-        ),
-      };
-
+    async (node, delayDays) => {
       try {
-        await mutatePitches(
-          async () => {
-            await patch(`/api/pitches/update?pitch=${pitch.id}`, {
-              arg: { delayDays },
-            });
-            return fetcher(pitchesKey);
-          },
-          { optimisticData: optimistic, rollbackOnError: true },
-        );
+        await patch(`/api/flow/nodes/${node.id}`, {
+          arg: { delayDays },
+        });
+        await mutate();
       } catch (error) {
         toast.error(errorMessage(error, "Could not update delay"));
       }
     },
-    [pitchData, pitches, mutatePitches, pitchesKey],
+    [mutate],
   );
+
+  const confirmDeleteNode = useCallback(async () => {
+    const node = pendingDelete;
+    if (!node) return;
+    setPendingDelete(null);
+    setBusy(true);
+    try {
+      await remove(`/api/flow/nodes/${node.id}`);
+      if (selectedPitch && node.pitchId === selectedPitch.id) {
+        setSelectedPitch(null);
+      }
+      await mutate();
+      toast.success("Block removed");
+    } catch (error) {
+      toast.error(errorMessage(error, "Could not delete block"));
+    } finally {
+      setBusy(false);
+    }
+  }, [pendingDelete, selectedPitch, mutate]);
 
   const handlers = useMemo(
     () => ({
       onOpenPitch: setSelectedPitch,
-      onDeletePitch: setPendingDelete,
-      onAddPitch: handleAddPitch,
+      onDeleteNode: setPendingDelete,
       onSaveDelay: handleSaveDelay,
       busy,
     }),
-    [handleAddPitch, handleSaveDelay, busy],
+    [handleSaveDelay, busy],
   );
 
-  const { nodes, edges } = useCampaignFlow({
+  const { nodes: graphNodes, edges: graphEdges } = useBlockFlow({
+    nodes: flowNodes,
+    wires,
     pitches,
     stats,
     handlers,
     selectedPitchId: selectedPitch?.id,
   });
 
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  useEffect(() => {
+    setNodes(graphNodes);
+    setEdges(graphEdges);
+  }, [graphNodes, graphEdges, setNodes, setEdges]);
+
   const structureKey = useMemo(
-    () => nodes.map((node) => node.id).join("|"),
-    [nodes],
+    () =>
+      `${flowNodes.map((n) => n.id).join("|")}::${wires.map((w) => w.id).join("|")}`,
+    [flowNodes, wires],
   );
 
-  if (pitchesLoading || contactsLoading) {
+  const nodeById = useMemo(
+    () => Object.fromEntries(flowNodes.map((n) => [n.id, n])),
+    [flowNodes],
+  );
+
+  const onConnect = useCallback(
+    async (connection) => {
+      const source = nodeById[connection.source];
+      if (!source) return;
+      const allowed = (BLOCK_HANDLES[source.type]?.outputs || []).map(
+        (o) => o.id,
+      );
+      if (!allowed.includes(connection.sourceHandle)) {
+        toast.error("Invalid output pin");
+        return;
+      }
+      if (nodeById[connection.target]?.type === "START") {
+        toast.error("Cannot wire into Start");
+        return;
+      }
+
+      setBusy(true);
+      try {
+        setEdges((eds) => {
+          const filtered = eds.filter(
+            (e) =>
+              !(
+                e.source === connection.source &&
+                e.sourceHandle === connection.sourceHandle
+              ),
+          );
+          return addEdge({ ...connection, type: "smoothstep" }, filtered);
+        });
+        await post("/api/flow/wires", {
+          arg: {
+            campaignId: campaign,
+            sourceNodeId: connection.source,
+            sourceHandle: connection.sourceHandle,
+            targetNodeId: connection.target,
+            targetHandle: connection.targetHandle || "in",
+          },
+        });
+        await mutate();
+        toast.success("Wired");
+      } catch (error) {
+        toast.error(errorMessage(error, "Could not wire"));
+        await mutate();
+      } finally {
+        setBusy(false);
+      }
+    },
+    [nodeById, campaign, mutate, setEdges],
+  );
+
+  const onEdgesDelete = useCallback(
+    async (deleted) => {
+      setBusy(true);
+      try {
+        for (const edge of deleted) {
+          if (edge.id) {
+            await remove(`/api/flow/wires/${edge.id}`).catch(() => {});
+          }
+        }
+        await mutate();
+      } catch (error) {
+        toast.error(errorMessage(error, "Could not delete wire"));
+        await mutate();
+      } finally {
+        setBusy(false);
+      }
+    },
+    [mutate],
+  );
+
+  const onNodeDragStop = useCallback(
+    async (_e, node) => {
+      try {
+        await patch(`/api/flow/nodes/${node.id}`, {
+          arg: { flowX: node.position.x, flowY: node.position.y },
+        });
+        mutate(
+          (cur) => {
+            if (!cur?.nodes) return cur;
+            return {
+              ...cur,
+              nodes: cur.nodes.map((n) =>
+                n.id === node.id
+                  ? { ...n, flowX: node.position.x, flowY: node.position.y }
+                  : n,
+              ),
+            };
+          },
+          { revalidate: false },
+        );
+      } catch {
+        toast.error("Could not save position");
+      }
+    },
+    [mutate],
+  );
+
+  const isValidConnection = useCallback(
+    (connection) => {
+      const source = nodeById[connection.source];
+      const target = nodeById[connection.target];
+      if (!source || !target) return false;
+      if (target.type === "START") return false;
+      if (connection.source === connection.target) return false;
+      const allowed = (BLOCK_HANDLES[source.type]?.outputs || []).map(
+        (o) => o.id,
+      );
+      return allowed.includes(connection.sourceHandle);
+    },
+    [nodeById],
+  );
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[500px]">
         <div className="border-2 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-          <p className="text-lg font-medium">Loading flow...</p>
+          <p className="text-lg font-medium">Loading blocks...</p>
         </div>
       </div>
     );
@@ -221,42 +299,55 @@ const Builder = ({ campaign }) => {
 
   return (
     <div className="w-full flex-grow">
-      <div className="relative h-[560px] border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-[#fafafa]">
+      <div className="relative h-[640px] border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-[#f4f4f5]">
         <ReactFlow
           nodes={nodes}
           edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onEdgesDelete={onEdgesDelete}
+          onNodeDragStop={onNodeDragStop}
+          isValidConnection={isValidConnection}
           nodeTypes={nodeTypes}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          // elementsSelectable must stay on: with draggable, connectable and
-          // selectable all false, xyflow renders node wrappers with
-          // pointer-events: none, making node content unclickable.
+          nodesDraggable
+          nodesConnectable
           elementsSelectable
+          deleteKeyCode={["Backspace", "Delete"]}
           proOptions={{ hideAttribution: true }}
           fitView
           fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.3}
+          minZoom={0.25}
           maxZoom={1.5}
+          connectionLineStyle={{ stroke: "#111827", strokeWidth: 2 }}
         >
           <AutoFit structureKey={structureKey} />
-          <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
-          <Controls showInteractive={false} />
+          <Background variant={BackgroundVariant.Dots} gap={18} size={1} />
+          <Controls />
           <MiniMap pannable zoomable className="!border-2 !border-black" />
 
           <Panel
             position="top-left"
-            className="bg-white p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-w-[260px]"
+            className="bg-white p-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-w-[280px]"
           >
-            <h3 className="text-sm font-bold">Email Campaign Flow</h3>
-            <p className="mt-1 text-xs text-gray-600">
-              Click an email to edit it, or a delay to change its wait. Use{" "}
-              <span className="font-medium text-black">+ Add block</span> to
-              append a real follow-up to the sequence.
+            <h3 className="text-sm font-bold">Blocks</h3>
+            <p className="mt-1 text-xs text-gray-600 leading-snug">
+              Wire freely: Email → Wait → Email → End. Connect Wait branches
+              (Replied / Opened / No reply) as needed.
             </p>
-            <p className="mt-2 text-[11px] text-gray-500 leading-snug">
-              Linear sequence only. Replied / Opened / No reply are stats —
-              sending stops automatically when a lead replies.
-            </p>
+            <div className="mt-2 flex flex-col gap-1.5">
+              {PALETTE.map((item) => (
+                <button
+                  key={item.type}
+                  type="button"
+                  disabled={busy}
+                  onClick={() => handleAddBlock(item.type)}
+                  className="w-full text-xs font-bold border-2 border-black px-2 py-1.5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50 text-left"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </Panel>
         </ReactFlow>
 
@@ -271,13 +362,11 @@ const Builder = ({ campaign }) => {
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold">
-                  {selectedPitch.stage === 0
-                    ? "First email"
-                    : `Follow-up ${selectedPitch.stage}`}
+                  {selectedPitch.title || "Email"}
                 </h3>
                 <button
                   onClick={() => setSelectedPitch(null)}
-                  className="px-3 py-1 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all"
+                  className="px-3 py-1 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                 >
                   Back to flow
                 </button>
@@ -295,15 +384,13 @@ const Builder = ({ campaign }) => {
         <AnimatePresence>
           {busy && (
             <motion.div
-              className="absolute inset-0 z-20 flex items-center justify-center bg-white/70 backdrop-blur-[1px]"
+              className="absolute inset-0 z-20 flex items-center justify-center bg-white/60 pointer-events-none"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
             >
-              <div className="flex items-center gap-3 bg-white px-4 py-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                <span className="text-sm font-medium">Updating flow...</span>
+              <div className="bg-white px-4 py-3 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-sm font-medium">
+                Updating...
               </div>
             </motion.div>
           )}
@@ -316,17 +403,17 @@ const Builder = ({ campaign }) => {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove this follow-up?</AlertDialogTitle>
+            <AlertDialogTitle>Remove this block?</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingDelete
-                ? `Follow-up ${pendingDelete.stage} and its template will be permanently deleted. This can't be undone.`
+                ? `${pendingDelete.type} block will be deleted with its wires.`
                 : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDeletePitch}
+              onClick={confirmDeleteNode}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               Delete

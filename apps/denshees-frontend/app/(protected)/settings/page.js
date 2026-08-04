@@ -54,7 +54,7 @@ function EmailSettings() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Fetch available email accounts
+  
   const {
     data: emailAccounts,
     isLoading,
@@ -62,7 +62,7 @@ function EmailSettings() {
     mutate: refreshEmails,
   } = useSWR("/api/google_apps", fetcher);
 
-  // Setup mutation for updating email daily limit
+  
   const { trigger: updateEmailLimit } = useSWRMutation(
     "/api/google_apps/update",
     patch,
@@ -115,7 +115,7 @@ function EmailSettings() {
       const message =
         error?.response?.data?.message || "Failed to remove email account";
       toast.error(message);
-      // Refresh so usage counts reflect reality if a campaign changed.
+      
       refreshEmails();
     } finally {
       setIsDeleting(false);
@@ -248,7 +248,7 @@ function EmailSettings() {
         )}
       </div>
 
-      {/* Setup Email Dialog */}
+      {}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -258,7 +258,7 @@ function EmailSettings() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Credential Confirmation */}
+      {}
       <AlertDialog
         open={!!deleteTarget}
         onOpenChange={(open) => {

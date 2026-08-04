@@ -1,20 +1,15 @@
-/**
- * IMAP email checking service
- * Replaces the external imap.anazaijaz.com API by running IMAP checks in-process.
- */
+
 
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
-// @ts-ignore -- no type declarations available
+
 import EmailBounceParser from "email-bounce-parser";
 import { prisma } from "./prisma.service.js";
+import { syncCrmForLeadEvent } from "./crm-sync.service.js";
 
 const IMAP_DEFAULT_PORT = 993;
 const IMAP_DEFAULT_SECURE = true;
 
-/**
- * Process a single email message — detect bounces and replies.
- */
 async function processEmail(msg: any, username: string) {
   const messageId = msg.envelope.inReplyTo;
   if (!messageId) return;
@@ -22,7 +17,7 @@ async function processEmail(msg: any, username: string) {
   try {
     const emailAddress: string = msg.envelope.from?.[0]?.address;
 
-    // Look up the sent campaign message this is a reply to
+    
     const campaignMessage = await prisma.campaignMessage.findFirst({
       where: { messageId, sent: true },
     });
@@ -32,7 +27,7 @@ async function processEmail(msg: any, username: string) {
     const parsedMessage = await simpleParser(msg.source);
     console.log("Processing reply!", parsedMessage.subject);
 
-    // Check for bounced email
+    
     const bounceParser = new EmailBounceParser();
     const bounceResult = bounceParser.read(parsedMessage.text || "");
 
@@ -51,11 +46,12 @@ async function processEmail(msg: any, username: string) {
           where: { id: campaignMessage.campaignEmailId },
           data: { status: "BOUNCED" },
         });
+        await syncCrmForLeadEvent(campaignMessage.campaignEmailId, "BOUNCE");
       }
       return;
     }
 
-    // Check for existing replies — skip if we already have a newer reply
+    
     const lastRepliedMessage = await prisma.campaignMessage.findFirst({
       where: { messageId, sent: false },
       orderBy: { timestamp: "desc" },
@@ -68,7 +64,7 @@ async function processEmail(msg: any, username: string) {
       return;
     }
 
-    // Create a new record for the reply
+    
     await prisma.campaignMessage.create({
       data: {
         messageId: msg.envelope.messageId,
@@ -80,11 +76,14 @@ async function processEmail(msg: any, username: string) {
       },
     });
 
-    // Update campaign email status to REPLIED
+    
     if (campaignMessage.campaignEmailId) {
       await prisma.campaignEmail.update({
         where: { id: campaignMessage.campaignEmailId },
         data: { status: "REPLIED" },
+      });
+      await syncCrmForLeadEvent(campaignMessage.campaignEmailId, "REPLY", {
+        messageExcerpt: parsedMessage.text ?? undefined,
       });
     }
   } catch (error: any) {
@@ -92,9 +91,6 @@ async function processEmail(msg: any, username: string) {
   }
 }
 
-/**
- * Fetch new emails for a single credential via IMAP.
- */
 async function fetchNewEmails(credential: {
   id: string;
   imapEmail: string | null;
@@ -133,7 +129,7 @@ async function fetchNewEmails(credential: {
     await client.connect();
     console.log(`Connected to IMAP for ${username}...`);
 
-    // Update status to Active
+    
     await prisma.emailCredential.update({
       where: { id },
       data: { status: "Active" },
@@ -191,7 +187,7 @@ async function fetchNewEmails(credential: {
         );
       }
 
-      // Update the last checked time
+      
       const currentTime = new Date();
       await prisma.emailCredential.update({
         where: { id },
@@ -228,9 +224,6 @@ async function fetchNewEmails(credential: {
   }
 }
 
-/**
- * Check emails for all credentials (or a specific one).
- */
 export async function checkEmails(credentialId?: string) {
   try {
     let credentials;
@@ -262,9 +255,6 @@ export async function checkEmails(credentialId?: string) {
   }
 }
 
-/**
- * Test IMAP connection with given credentials.
- */
 export async function testImapConnection(
   username: string,
   password: string,
@@ -295,7 +285,7 @@ export async function testImapConnection(
       try {
         await client.logout();
       } catch {
-        // already closed
+        
       }
     }
   }

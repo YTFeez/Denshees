@@ -1,6 +1,6 @@
-/**
- * Email-related interfaces for the email processor
- */
+
+
+
 
 export interface EmailRecord {
   id: string;

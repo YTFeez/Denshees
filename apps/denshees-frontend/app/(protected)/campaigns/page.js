@@ -17,7 +17,7 @@ import fetcher from "@/lib/fetcher";
 import { patch } from "@/lib/apis";
 import { toast } from "sonner";
 
-// Define update functions for SWR mutations
+
 async function updateCampaignStatus(url, { arg }) {
   const { campaign, newStatus } = arg;
   return patch(url, {
@@ -36,19 +36,19 @@ async function deleteCampaign(url, { arg }) {
   });
 }
 
-// Helper function to determine if a campaign is in an active state
+
 function isActiveStatus(status) {
   return ["RUNNING", "VERIFYING", "PAUSING"].includes(status);
 }
 
-// Helper function to determine if a campaign status can be toggled
+
 function canToggleStatus(status) {
   return ["RUNNING", "PAUSED", "PENDING", "COMPLETED", "FAILED"].includes(
     status,
   );
 }
 
-// Helper function to get the next status when toggling
+
 function getNextStatus(currentStatus) {
   if (isActiveStatus(currentStatus)) {
     return "PAUSED";
@@ -63,14 +63,14 @@ export default function CampaignsPage() {
 
   // Initialize Fuse.js with campaign data and options for fuzzy searching
   const fuseOptions = {
-    keys: ["title", "desc"], // Fields to search through
-    threshold: 0.4, // Controls fuzziness level
+    keys: ["title", "desc"], 
+    threshold: 0.4, 
   };
 
   const campaigns = data?.items || [];
   const fuse = new Fuse(campaigns, fuseOptions);
 
-  // Perform fuzzy search based on the search query
+  
   const filteredCampaigns =
     searchQuery.trim() === ""
       ? campaigns // If no search query, show all campaigns
@@ -137,13 +137,13 @@ export default function CampaignsPage() {
   );
 }
 
-// Separate component for each campaign row to properly handle SWR mutations
+
 function CampaignRow({ campaign }) {
-  // Create a unique key for this specific campaign
+  
   const statusMutationKey = `/api/campaign/${campaign.id}`;
   const deleteMutationKey = `/api/campaign/${campaign.id}`;
 
-  // Set up mutations for this specific campaign
+  
   const { trigger: triggerStatusUpdate, isMutating: isUpdatingStatus } =
     useSWRMutation(statusMutationKey, updateCampaignStatus);
 
@@ -153,7 +153,7 @@ function CampaignRow({ campaign }) {
   );
 
   const handleStatusToggle = async (event) => {
-    // Check if the status can be toggled
+    
     if (!canToggleStatus(campaign.status)) {
       toast(`Cannot toggle campaign in ${campaign.status} status`, {
         style: {
@@ -167,13 +167,13 @@ function CampaignRow({ campaign }) {
     const statusAction = newStatus === "RUNNING" ? "started" : "paused";
 
     try {
-      // Trigger the mutation
+      
       await triggerStatusUpdate({ campaign, newStatus });
 
-      // Revalidate the campaigns list
+      
       mutate("/api/campaign");
 
-      // Show success message
+      
       toast(`Campaign ${statusAction} successfully`, {
         style: {
           backgroundColor: "white",
@@ -191,13 +191,13 @@ function CampaignRow({ campaign }) {
 
   const handleDelete = async () => {
     try {
-      // Trigger the mutation
+      
       await triggerDelete({ campaign });
 
-      // Revalidate the campaigns list
+      
       mutate("/api/campaign");
 
-      // Show success message
+      
       toast("Campaign deleted successfully", {
         style: {
           backgroundColor: "white",

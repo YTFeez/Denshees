@@ -25,9 +25,9 @@ export async function POST(request) {
   }
 
   try {
-    // Verify the Google ID token: checks Google's signature AND that the
-    // token's audience matches our client ID (stops a token minted for a
-    // different app being replayed here).
+    
+    
+    
     const ticket = await oauthClient.verifyIdToken({
       idToken: credential,
       audience: GOOGLE_CLIENT_ID,
@@ -44,8 +44,8 @@ export async function POST(request) {
 
     const email = payload.email.toLowerCase();
 
-    // Find existing user (login) or create one (signup) — same response shape
-    // either way, so the frontend treats both identically.
+    
+    
     let user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
@@ -54,7 +54,7 @@ export async function POST(request) {
           email,
           name: payload.name || null,
           avatar: payload.picture || null,
-          password: null, // Google accounts have no password until set in Settings
+          password: null, 
           verified: true,
           credits: 500,
           aiCredits: 500,

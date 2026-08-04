@@ -19,19 +19,7 @@ import {
 } from "@/components/ui/select";
 import { LEAD_STATUSES } from "@/lib/constants/lead-status";
 
-/**
- * Filters popover for the campaign leads table.
- *
- * Every filter here is applied server-side. Edits are held in local draft state
- * and only lifted to the parent (and so into the fetch query) on Apply — Reset
- * restores the defaults into the draft but likewise waits for Apply.
- *
- * @param {object} props
- * @param {{sentAtSort: string, stageFilter: string, statuses: string[]}} props.filters - Currently applied filters.
- * @param {{sentAtSort: string, stageFilter: string, statuses: string[]}} props.defaultFilters - Values the Reset button restores.
- * @param {(filters: object) => void} props.onApply - Called with the draft when Apply is pressed.
- * @param {number} props.maxStageCount - Number of stages in the campaign.
- */
+
 export default function LeadsFilters({
   filters,
   defaultFilters,
@@ -41,8 +29,7 @@ export default function LeadsFilters({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(filters);
 
-  // Discard an abandoned draft when the popover closes, so reopening always
-  // shows what is actually applied.
+
   useEffect(() => {
     if (!open) setDraft(filters);
   }, [open, filters]);

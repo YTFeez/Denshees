@@ -1,53 +1,80 @@
-import dagre from "@dagrejs/dagre";
-
 export const NODE_SIZE = {
-  start: { width: 190, height: 76 },
-  email: { width: 240, height: 116 },
-  delay: { width: 150, height: 60 },
-  add: { width: 150, height: 52 },
-  outcome: { width: 170, height: 96 },
+  start: { width: 180, height: 72 },
+  email: { width: 240, height: 130 },
+  wait: { width: 220, height: 168 },
+  end: { width: 130, height: 64 },
 };
 
-const OUTCOME_GAP_Y = 170;
-const OUTCOME_GAP_X = 190;
+const COL_GAP = 320;
+const ROW_GAP = 200;
 
-/** Lays the sequence out left-to-right and centres each node on its dagre point. */
-export function layoutSequence(nodes, edges) {
-  const graph = new dagre.graphlib.Graph();
-  graph.setDefaultEdgeLabel(() => ({}));
-  graph.setGraph({ rankdir: "LR", nodesep: 48, ranksep: 64 });
+export function autoLayoutPositions(pitches, flowEdges) {
+  const byId = Object.fromEntries(pitches.map((p) => [p.id, p]));
+  const positions = {};
 
-  nodes.forEach(({ id, width, height }) =>
-    graph.setNode(id, { width, height }),
+  const always = flowEdges.find(
+    (e) => e.condition === "ALWAYS" && e.fromPitchId == null,
   );
-  edges.forEach(({ source, target }) => graph.setEdge(source, target));
 
-  dagre.layout(graph);
+  const spine = [];
+  const seen = new Set();
+  let id = always?.toPitchId || null;
+  if (!id && pitches.length) {
+    const sorted = [...pitches].sort((a, b) => (a.stage ?? 0) - (b.stage ?? 0));
+    id = sorted[0]?.id;
+  }
+  while (id && byId[id] && !seen.has(id)) {
+    seen.add(id);
+    spine.push(byId[id]);
+    const next = flowEdges.find(
+      (e) => e.condition === "NO_REPLY" && e.fromPitchId === id && e.toPitchId,
+    );
+    id = next?.toPitchId || null;
+  }
 
-  return nodes.map((node) => {
-    const { x, y } = graph.node(node.id);
-    return {
-      ...node,
-      position: { x: x - node.width / 2, y: y - node.height / 2 },
-    };
+  
+  const rest = pitches.filter((p) => !seen.has(p.id));
+
+  spine.forEach((pitch, index) => {
+    positions[pitch.id] = { x: index * COL_GAP + 280, y: 180 };
   });
+
+  
+  let branchSlot = 0;
+  for (const edge of flowEdges) {
+    if (!edge.toPitchId || !edge.fromPitchId) continue;
+    if (edge.condition === "NO_REPLY" || edge.condition === "ALWAYS") continue;
+    if (seen.has(edge.toPitchId) && positions[edge.toPitchId]) continue;
+    const parentPos = positions[edge.fromPitchId];
+    if (!parentPos) continue;
+    const yOff = edge.condition === "OPENED" ? ROW_GAP : -ROW_GAP;
+    positions[edge.toPitchId] = {
+      x: parentPos.x + COL_GAP * 0.85,
+      y: parentPos.y + yOff,
+    };
+    seen.add(edge.toPitchId);
+  }
+
+  rest.forEach((pitch) => {
+    if (positions[pitch.id]) return;
+    positions[pitch.id] = {
+      x: 280 + (spine.length + branchSlot) * 40,
+      y: 180 + ROW_GAP * 1.5 + branchSlot * 40,
+    };
+    branchSlot += 1;
+  });
+
+  return positions;
 }
 
-/**
- * Outcome nodes are analytics, not sequence steps. Dagre would rank them
- * alongside the "+" node; anchoring them under the terminal email keeps the
- * chain reading as a single straight line.
- */
-export function positionOutcomes(outcomeNodes, terminalNode) {
-  if (!terminalNode) return outcomeNodes;
-
-  const centerX =
-    terminalNode.position.x + terminalNode.width / 2 - NODE_SIZE.outcome.width / 2;
-  const baseY = terminalNode.position.y + terminalNode.height + OUTCOME_GAP_Y;
-  const offset = (outcomeNodes.length - 1) / 2;
-
-  return outcomeNodes.map((node, index) => ({
-    ...node,
-    position: { x: centerX + (index - offset) * OUTCOME_GAP_X, y: baseY },
-  }));
+export function resolvePitchPosition(pitch, autoPositions) {
+  if (
+    pitch.flowX != null &&
+    pitch.flowY != null &&
+    Number.isFinite(pitch.flowX) &&
+    Number.isFinite(pitch.flowY)
+  ) {
+    return { x: pitch.flowX, y: pitch.flowY };
+  }
+  return autoPositions[pitch.id] || { x: 280, y: 180 };
 }

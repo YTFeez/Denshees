@@ -21,7 +21,7 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Create a unique tag for this run so the client can subscribe to realtime updates
+    
     const tag = `add-leads-${listId}-${Date.now()}`;
 
     const handle = await tasks.trigger(
@@ -30,7 +30,7 @@ export async function POST(request, { params }) {
       { tags: [tag] },
     );
 
-    // Generate a public access token scoped to this run's tag
+    
     const publicToken = await auth.createPublicToken({
       scopes: {
         read: {

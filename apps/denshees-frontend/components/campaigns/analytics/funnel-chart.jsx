@@ -17,14 +17,14 @@ const FunnelChart = ({
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
 
-    // Set canvas dimensions
+
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
 
-    // Clear canvas
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Define funnel stages
+
     const stages = [
       { label: "Total Leads", value: totalContacts, color: "#e5e7eb" },
       { label: "Verified", value: verifiedContacts, color: "#bfdbfe" },
@@ -33,13 +33,13 @@ const FunnelChart = ({
       { label: "Replies", value: emailsReplied, color: "#3b82f6" },
     ];
 
-    // Calculate dimensions
+
     const padding = 40;
     const width = canvas.width - padding * 2;
     const height = canvas.height - padding * 2;
     const stageHeight = height / stages.length;
 
-    // Draw funnel
+
     const maxValue = Math.max(1, totalContacts);
 
     stages.forEach((stage, index) => {
@@ -48,7 +48,7 @@ const FunnelChart = ({
       const stageWidth = width * widthPercentage;
       const x = (canvas.width - stageWidth) / 2;
 
-      // Draw stage rectangle
+
       ctx.fillStyle = stage.color;
       ctx.strokeStyle = "#000000";
       ctx.lineWidth = 2;
@@ -58,7 +58,7 @@ const FunnelChart = ({
       ctx.fill();
       ctx.stroke();
 
-      // Draw label
+
       ctx.fillStyle = "#000000";
       ctx.font = "14px Arial";
       ctx.textAlign = "center";

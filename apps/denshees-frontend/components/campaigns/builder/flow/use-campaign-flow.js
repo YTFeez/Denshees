@@ -1,153 +1,160 @@
 import { useMemo } from "react";
 import { MarkerType } from "@xyflow/react";
-import { NODE_SIZE, layoutSequence, positionOutcomes } from "./layout";
-
-const SEQUENCE_EDGE = {
-  type: "smoothstep",
-  style: { stroke: "#000000", strokeWidth: 1.5 },
-  markerEnd: { type: MarkerType.ArrowClosed, color: "#000000" },
-};
-
-const OUTCOME_EDGES = [
-  { id: "replied", label: "Replied", color: "#15803d" },
-  { id: "opened", label: "Opened", color: "#1d4ed8" },
-  { id: "no-reply", label: "No reply", color: "#4b5563" },
-];
-
-const labelFor = (index) =>
-  index === 0 ? "First email" : `Follow-up ${index}`;
+import {
+  NODE_SIZE,
+  autoLayoutPositions,
+  resolvePitchPosition,
+} from "./layout";
+import {
+  CONDITION_COLORS,
+  END_NODE_ID,
+  START_NODE_ID,
+} from "./pins";
 
 const sized = (type, node) => ({ ...node, ...NODE_SIZE[type] });
 
-/**
- * Builds the campaign graph from its pitches. A Delay node sits between two
- * emails and carries the delay of the email that follows it, so editing it
- * writes back to that pitch — there is no separate delay record.
- */
-export function useCampaignFlow({ pitches, stats, handlers, selectedPitchId }) {
-  return useMemo(() => {
-    if (!pitches?.length) return { nodes: [], edges: [] };
+function pitchLabel(pitch, indexHint) {
+  if ((pitch.stage ?? 0) === 0) return "First email";
+  return pitch.title || `Email ${indexHint ?? pitch.stage}`;
+}
 
-    const sequenceNodes = [
+export function useCampaignFlow({
+  pitches,
+  flowEdges = [],
+  stats,
+  handlers,
+  selectedPitchId,
+}) {
+  return useMemo(() => {
+    if (!pitches?.length && !flowEdges.length) {
+      
+      return {
+        nodes: [
+          sized("start", {
+            id: START_NODE_ID,
+            type: "start",
+            position: { x: 40, y: 180 },
+            data: { totalContacts: stats.totalContacts },
+            draggable: false,
+          }),
+          sized("end", {
+            id: END_NODE_ID,
+            type: "end",
+            position: { x: 400, y: 190 },
+            data: {},
+            draggable: false,
+          }),
+        ],
+        edges: [],
+      };
+    }
+
+    const autoPositions = autoLayoutPositions(pitches, flowEdges);
+    const byId = Object.fromEntries(pitches.map((p) => [p.id, p]));
+
+    const nodes = [
       sized("start", {
-        id: "start",
+        id: START_NODE_ID,
         type: "start",
+        position: { x: 40, y: 180 },
         data: { totalContacts: stats.totalContacts },
+        draggable: false,
       }),
     ];
-    const sequenceEdges = [];
 
     pitches.forEach((pitch, index) => {
-      const emailId = `email-${pitch.id}`;
-      const isTerminal = index === pitches.length - 1;
-
-      if (index > 0) {
-        const delayId = `delay-${pitch.id}`;
-        const previousId = `email-${pitches[index - 1].id}`;
-
-        sequenceNodes.push(
-          sized("delay", {
-            id: delayId,
-            type: "delay",
-            data: {
-              pitch,
-              delayDays: pitch.delayDays ?? 1,
-              onSave: handlers.onSaveDelay,
-            },
-          }),
-        );
-
-        sequenceEdges.push(
-          { ...SEQUENCE_EDGE, id: `${previousId}->${delayId}`, source: previousId, target: delayId },
-          { ...SEQUENCE_EDGE, id: `${delayId}->${emailId}`, source: delayId, target: emailId },
-        );
-      } else {
-        sequenceEdges.push({
-          ...SEQUENCE_EDGE,
-          id: `start->${emailId}`,
-          source: "start",
-          target: emailId,
-        });
-      }
-
-      sequenceNodes.push(
+      const stageIndex = pitch.stage ?? index;
+      nodes.push(
         sized("email", {
-          id: emailId,
+          id: `email-${pitch.id}`,
           type: "email",
+          position: resolvePitchPosition(pitch, autoPositions),
           data: {
-            label: labelFor(index),
+            label: pitchLabel(pitch, stageIndex),
             pitch,
             isSelected: selectedPitchId === pitch.id,
-            isTerminal,
-            isDeletable: isTerminal && index > 0,
+            isDeletable: (pitch.stage ?? 0) > 0,
             onOpen: handlers.onOpenPitch,
             onDelete: handlers.onDeletePitch,
-            // A lead's stage is incremented after a send, so those who received
-            // email `index` are the ones now sitting at stage `index + 1`.
-            contactCount: stats.contactsPerStage[index + 1] ?? 0,
-            replyCount: stats.repliesPerStage[index + 1] ?? 0,
+            contactCount: stats.contactsPerStage[stageIndex] ?? 0,
+            replyCount: stats.repliesPerStage[stageIndex] ?? 0,
             totalContacts: stats.totalContacts,
           },
+          draggable: true,
         }),
       );
     });
 
-    const lastPitch = pitches[pitches.length - 1];
-    const lastEmailId = `email-${lastPitch.id}`;
+    
+    let maxX = 400;
+    let avgY = 180;
+    let count = 0;
+    nodes.forEach((n) => {
+      if (n.type !== "email") return;
+      maxX = Math.max(maxX, n.position.x + (n.width || 260));
+      avgY += n.position.y;
+      count += 1;
+    });
+    avgY = count ? avgY / count : 190;
 
-    sequenceNodes.push(
-      sized("add", {
-        id: "add",
-        type: "add",
-        // onAdd receives { kind, delayDays } from the block menu
-        data: { onAdd: handlers.onAddPitch, disabled: handlers.busy },
+    nodes.push(
+      sized("end", {
+        id: END_NODE_ID,
+        type: "end",
+        position: { x: maxX + 120, y: avgY },
+        data: {},
+        draggable: false,
       }),
     );
-    sequenceEdges.push({
-      ...SEQUENCE_EDGE,
-      id: `${lastEmailId}->add`,
-      source: lastEmailId,
-      target: "add",
-      style: { stroke: "#9ca3af", strokeWidth: 1.5, strokeDasharray: "4 4" },
-      markerEnd: undefined,
-    });
 
-    const laidOut = layoutSequence(sequenceNodes, sequenceEdges);
-    const terminalEmail = laidOut.find((node) => node.id === lastEmailId);
+    const edges = [];
+    for (const edge of flowEdges) {
+      const condition = edge.condition;
+      const color = CONDITION_COLORS[condition] || "#111827";
+      const source =
+        edge.fromPitchId == null
+          ? START_NODE_ID
+          : `email-${edge.fromPitchId}`;
+      const target = edge.toPitchId
+        ? `email-${edge.toPitchId}`
+        : END_NODE_ID;
 
-    const outcomeNodes = positionOutcomes(
-      OUTCOME_EDGES.map(({ id, label }) =>
-        sized("outcome", {
-          id: `outcome-${id}`,
-          type: "outcome",
-          data: {
-            label,
-            type: id === "no-reply" ? "noReply" : id,
-            count: stats.outcomes[id].count,
-            percentage: stats.outcomes[id].percentage,
-          },
-        }),
-      ),
-      terminalEmail,
-    );
+      
+      if (edge.fromPitchId && !byId[edge.fromPitchId]) continue;
+      if (edge.toPitchId && !byId[edge.toPitchId]) continue;
 
-    const outcomeEdges = OUTCOME_EDGES.map(({ id, label, color }) => ({
-      id: `${lastEmailId}->outcome-${id}`,
-      source: lastEmailId,
-      sourceHandle: "outcome",
-      target: `outcome-${id}`,
-      type: "smoothstep",
-      animated: true,
-      label,
-      labelStyle: { fontSize: 10, fontWeight: 600, fill: color },
-      labelBgStyle: { fill: "#ffffff", fillOpacity: 0.9 },
-      style: { stroke: color, strokeWidth: 1.5 },
-      markerEnd: { type: MarkerType.ArrowClosed, color },
-    }));
+      const targetPitch = edge.toPitchId ? byId[edge.toPitchId] : null;
+      const delayLabel =
+        targetPitch && condition !== "ALWAYS"
+          ? `+${targetPitch.delayDays ?? 1}d`
+          : null;
 
-    return {
-      nodes: [...laidOut, ...outcomeNodes],
-      edges: [...sequenceEdges, ...outcomeEdges],
-    };
-  }, [pitches, stats, handlers, selectedPitchId]);
+      edges.push({
+        id: `flow-${edge.id}`,
+        source,
+        sourceHandle: condition,
+        target,
+        targetHandle: "in",
+        type: "smoothstep",
+        animated: condition !== "ALWAYS",
+        label: delayLabel
+          ? `${condition.replace("_", " ")} · ${delayLabel}`
+          : condition === "ALWAYS"
+            ? "Start"
+            : condition.replace("_", " "),
+        labelStyle: { fontSize: 10, fontWeight: 600, fill: color },
+        labelBgStyle: { fill: "#ffffff", fillOpacity: 0.92 },
+        style: { stroke: color, strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color },
+        data: {
+          edgeId: edge.id,
+          condition,
+          fromPitchId: edge.fromPitchId,
+          toPitchId: edge.toPitchId,
+        },
+      });
+    }
+
+    return { nodes, edges };
+  }, [pitches, flowEdges, stats, handlers, selectedPitchId]);
 }

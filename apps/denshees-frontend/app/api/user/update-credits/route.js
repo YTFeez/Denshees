@@ -7,7 +7,7 @@ export async function POST(request) {
     const { customer_id, email, creditType, quantity, payment_id, action } =
       body;
 
-    // Validate required fields
+    
     if (!email || !creditType || !quantity || !payment_id || !action) {
       return NextResponse.json(
         {
@@ -18,7 +18,7 @@ export async function POST(request) {
       );
     }
 
-    // Validate credit type
+    
     if (!["email", "ai"].includes(creditType)) {
       return NextResponse.json(
         { error: 'Invalid creditType. Must be "email" or "ai"' },
@@ -26,7 +26,7 @@ export async function POST(request) {
       );
     }
 
-    // Validate action
+    
     if (!["add", "subtract"].includes(action)) {
       return NextResponse.json(
         { error: 'Invalid action. Must be "add" or "subtract"' },
@@ -101,7 +101,7 @@ export async function POST(request) {
   }
 }
 
-// Handle unsupported methods
+
 export async function GET() {
   return NextResponse.json(
     { error: "Method not allowed. Use POST to update credits." },

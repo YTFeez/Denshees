@@ -6,6 +6,7 @@ import { SettingsIcon, UserIcon } from "mage-icons-react/bulk";
 import { LogoutIcon } from "mage-icons-react/stroke";
 import useAuthStore from "@/store/auth.store";
 import { CreditsDisplay } from "@/components/credits-display";
+import { NotificationsBell } from "@/components/notifications-bell";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,8 +19,6 @@ import densheesPNG from "@/assets/logos/denshees.png";
 export function Navbar() {
   const router = useRouter();
   const { user, clearAuth } = useAuthStore();
-
-  console.log(user);
 
   const handleLogout = () => {
     clearAuth();
@@ -41,6 +40,7 @@ export function Navbar() {
 
         <div className="flex items-center gap-2 md:gap-4 ml-auto">
           <CreditsDisplay user={user} />
+          <NotificationsBell />
 
           <div className="relative">
             <DropdownMenu>

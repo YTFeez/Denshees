@@ -48,14 +48,14 @@ const LeadsGrowthChart = ({ growthData }) => {
     const labels = growthData.data.map((item) => formatDate(item.date));
     const counts = growthData.data.map((item) => item.count);
 
-    // Compute cumulative totals
+
     const cumulative = [];
     counts.reduce((acc, val, i) => {
       cumulative[i] = acc + val;
       return cumulative[i];
     }, 0);
 
-    // Compute average per day
+
     const avg =
       counts.length > 0
         ? counts.reduce((sum, c) => sum + c, 0) / counts.length

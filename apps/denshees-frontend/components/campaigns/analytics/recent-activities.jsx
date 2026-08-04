@@ -30,14 +30,14 @@ import {
 } from "@/components/ui/dialog";
 import fetcher from "@/lib/fetcher";
 
-// ─── Per‑day fetcher key builder ────────────────────
+
 function dayKey(campaignId, date) {
   if (!campaignId || !date) return null;
   const d = format(date, "yyyy-MM-dd");
   return `/api/analysis/campaign/${campaignId}/activities?date=${d}`;
 }
 
-// ─── Hook: fetch a single day's activities ──────────
+
 function useDayActivities(campaignId, date) {
   const { data, error, isLoading } = useSWR(dayKey(campaignId, date), fetcher, {
     revalidateOnFocus: false,
@@ -51,11 +51,11 @@ function useDayActivities(campaignId, date) {
   };
 }
 
-// ─── Main Export ────────────────────────────────────
+
 export function CampaignActivities({ campaignId }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  // Fetch lightweight daily stats for the calendar heat‑map
+
   const { data: dailyStatsData } = useSWR(
     campaignId ? `/api/analysis/campaign/${campaignId}/daily-stats` : null,
     fetcher,
@@ -84,7 +84,7 @@ export function CampaignActivities({ campaignId }) {
   );
 }
 
-// ─── Day Card (loads its own data) ──────────────────
+
 function DayCard({ campaignId, day }) {
   const { activities, summary, isLoading, error } = useDayActivities(
     campaignId,
@@ -301,7 +301,7 @@ function DayCard({ campaignId, day }) {
   );
 }
 
-// ─── Timeline Item ──────────────────────────────────
+
 function TimelineItem({ activity }) {
   const { icon, dotBg, dotBorder } = getActivityStyle(activity.type);
 
@@ -346,7 +346,7 @@ function TimelineItem({ activity }) {
   );
 }
 
-// ─── Calendar Sidebar with heat‑map ────────────────
+
 function ActivityCalendar({
   dailyStats,
   selectedDate,
@@ -354,18 +354,18 @@ function ActivityCalendar({
   campaignId,
 }) {
   const { summary } = useDayActivities(campaignId, selectedDate);
-  // Build a map: date string → total_activity from the PB view
+
   const activeDates = useMemo(() => {
     const map = new Map();
     dailyStats.forEach((row) => {
-      // row.day comes as "YYYY-MM-DD" or full ISO
+
       const key = row.day?.split(" ")[0] || row.day;
       map.set(key, row.total_activity || 0);
     });
     return map;
   }, [dailyStats]);
 
-  // Determine thresholds for low / medium / high buckets
+
   const { lowDates, medDates, highDates } = useMemo(() => {
     const counts = Array.from(activeDates.values());
     if (counts.length === 0)
@@ -470,7 +470,7 @@ function ActivityCalendar({
   );
 }
 
-// ─── Activity style helpers ────────────────────────
+
 function getActivityStyle(type) {
   switch (type) {
     case "Email sent":
@@ -516,7 +516,7 @@ function getActivityStyle(type) {
   }
 }
 
-// ─── Skeleton ──────────────────────────────────────
+
 function ActivitySkeleton() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

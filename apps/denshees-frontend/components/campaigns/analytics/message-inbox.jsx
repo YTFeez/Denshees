@@ -19,10 +19,10 @@ import fetcher from "@/lib/fetcher";
 import instance from "@/lib/axios";
 import { cn } from "@/lib/utils";
 
-// Split email text into the main reply and the quoted thread
+
 function splitThread(text) {
   if (!text) return { body: "", quoted: "" };
-  // Match "On <date> <someone> wrote:" pattern (Gmail style)
+
   const onWroteMatch = text.match(/\n\s*On .+wrote:\s*\n/);
   if (onWroteMatch) {
     const idx = onWroteMatch.index;
@@ -31,7 +31,7 @@ function splitThread(text) {
       quoted: text.slice(idx).trimStart(),
     };
   }
-  // Match lines starting with ">" (standard quoting)
+
   const lines = text.split("\n");
   const firstQuotedIdx = lines.findIndex((l) => /^>/.test(l.trim()));
   if (firstQuotedIdx > 0) {

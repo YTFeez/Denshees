@@ -5,8 +5,10 @@ import { Toast } from "@/components/ui/sonner";
 const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-dm-sans",
-  weight: ["300", "400", "500", "600", "700"],
+  
+  weight: ["400", "500", "700"],
   display: "swap",
+  preload: true,
 });
 
 export const metadata = {

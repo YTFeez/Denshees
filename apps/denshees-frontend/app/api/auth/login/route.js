@@ -23,8 +23,8 @@ export async function POST(request) {
       );
     }
 
-    // Google-created accounts have no password — block email/password login
-    // until the user sets one in Settings (also avoids bcrypt.compare on null).
+    
+    
     if (!user.password) {
       return NextResponse.json(
         {

@@ -15,7 +15,7 @@ const VerifiedIcon = ({
   verificationMessage,
   verificationResponse,
 }) => {
-  // Status can be "VERIFIED", "FAILED", "PENDING", or null/undefined
+
   let icon = null;
   let tooltipText = "";
   let iconColor = "";
@@ -33,7 +33,7 @@ const VerifiedIcon = ({
     tooltipText = "Verification in progress";
     iconColor = "text-yellow-600";
   } else {
-    // No verification status
+
     return null;
   }
 

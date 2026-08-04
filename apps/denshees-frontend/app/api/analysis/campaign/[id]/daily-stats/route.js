@@ -2,12 +2,8 @@ import { NextResponse } from "next/server";
 import { jwtDecode } from "jwt-decode";
 import prisma from "@/lib/prisma";
 
-/**
- * GET /api/analysis/campaign/[id]/daily-stats
- *
- * Returns aggregated daily stats for this campaign.
- * Used to power the calendar heat-map without fetching individual activities.
- */
+
+
 export async function GET(request, { params }) {
   try {
     const { id } = params;
@@ -21,7 +17,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Verify campaign ownership
+    
     const campaign = await prisma.campaign.findUnique({ where: { id } });
     if (!campaign || campaign.userId !== currUser.userId) {
       return NextResponse.json(
@@ -30,8 +26,8 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Aggregate daily stats from campaign_messages and campaign_opens
-    // Using raw SQL for date grouping since Prisma groupBy doesn't support date truncation natively
+    
+    
     const dailyStats = await prisma.$queryRaw`
       WITH msg_stats AS (
         SELECT
@@ -63,7 +59,7 @@ export async function GET(request, { params }) {
       ORDER BY ms.day DESC
     `;
 
-    // Format to match the old PB view shape
+    
     const stats = dailyStats.map((row) => ({
       campaign: id,
       day: row.day,

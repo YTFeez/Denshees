@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { SettingsIcon, UserPlusIcon } from "mage-icons-react/bulk";
 import { RefreshIcon } from "mage-icons-react/stroke";
@@ -24,7 +24,7 @@ export default function CampaignCRMPage() {
   const [stageManagerOpen, setStageManagerOpen] = useState(false);
   const [addLeadDialogOpen, setAddLeadDialogOpen] = useState(false);
 
-  // Fetch stages
+  
   const {
     data: stages = [],
     mutate: mutateStages,
@@ -34,7 +34,7 @@ export default function CampaignCRMPage() {
     fetcher,
   );
 
-  // Fetch deals
+  
   const {
     data: deals = [],
     mutate: mutateDeals,
@@ -44,13 +44,13 @@ export default function CampaignCRMPage() {
     fetcher,
   );
 
-  // Fetch activities for selected deal
+  
   const { data: activities = [], mutate: mutateActivities } = useSWR(
     selectedDeal ? `/api/crm/activities?deal=${selectedDeal.id}` : null,
     fetcher,
   );
 
-  // Seed stages
+  
   const { trigger: seedStages, isMutating: isSeeding } = useSWRMutation(
     "/api/crm/stages/seed",
     post,
@@ -65,7 +65,7 @@ export default function CampaignCRMPage() {
     },
   );
 
-  // Create stage
+  
   const { trigger: createStage } = useSWRMutation(
     "/api/crm/stages",
     (url, { arg }) =>
@@ -78,7 +78,7 @@ export default function CampaignCRMPage() {
     },
   );
 
-  // Update stage
+  
   const handleUpdateStage = useCallback(
     async (stageId, data) => {
       try {
@@ -91,10 +91,10 @@ export default function CampaignCRMPage() {
     [mutateStages],
   );
 
-  // Delete stage
+  
   const handleDeleteStage = useCallback(
     async (stageId) => {
-      // Check if any deals are in this stage
+      
       const dealsInStage = deals.filter((d) => d.stage === stageId);
       if (dealsInStage.length > 0) {
         toast.error("Cannot delete stage with deals. Move them first.");
@@ -112,25 +112,24 @@ export default function CampaignCRMPage() {
     [deals, mutateStages],
   );
 
-  // Move deal to new stage
+  
   const moveDealToStage = useCallback(
     async (dealId, fromStageId, toStageId) => {
       try {
-        // Optimistically update
         mutateDeals(
           (current) =>
             current?.map((d) =>
-              d.id === dealId ? { ...d, stage: toStageId } : d,
+              d.id === dealId
+                ? { ...d, stage: toStageId, stageLocked: true }
+                : d,
             ),
           false,
         );
 
-        // Update deal
         await patch(`/api/crm/deals/${dealId}`, {
-          arg: { stage: toStageId },
+          arg: { stage: toStageId, stageLocked: true },
         });
 
-        // Log activity
         await post("/api/crm/activities", {
           arg: {
             deal: dealId,
@@ -146,18 +145,61 @@ export default function CampaignCRMPage() {
         if (selectedDeal?.id === dealId) {
           mutateActivities();
           setSelectedDeal((prev) =>
-            prev ? { ...prev, stage: toStageId } : prev,
+            prev
+              ? { ...prev, stage: toStageId, stageLocked: true }
+              : prev,
           );
         }
       } catch {
-        mutateDeals(); // rollback
+        mutateDeals();
         toast.error("Failed to move deal");
       }
     },
     [campaignId, mutateDeals, mutateActivities, selectedDeal],
   );
 
-  // Add activity
+  const handleDeleteDeal = useCallback(
+    async (dealId) => {
+      try {
+        const { default: instance } = await import("@/lib/axios");
+        await instance.delete(`/api/crm/deals/${dealId}`);
+        mutateDeals();
+        setSelectedDeal(null);
+        toast.success("Deal deleted");
+      } catch {
+        toast.error("Failed to delete deal");
+      }
+    },
+    [mutateDeals],
+  );
+
+  const handleBulkSync = useCallback(async () => {
+    if (!stages.length) {
+      toast.error("Create stages first");
+      return;
+    }
+    try {
+      
+      await post("/api/crm/stages/seed", { arg: { campaign: campaignId } });
+      const emailAdded =
+        stages.find((s) => s.key === "email_added") || stages[0];
+      const result = await post("/api/crm/deals/bulk-create", {
+        arg: {
+          campaign: campaignId,
+          defaultStageId: emailAdded.id,
+        },
+      });
+      mutateDeals();
+      mutateStages();
+      toast.success(
+        `Synced ${result?.created ?? 0} lead(s) into CRM (${result?.total ?? 0} total)`,
+      );
+    } catch {
+      toast.error("Failed to sync leads");
+    }
+  }, [stages, campaignId, mutateDeals, mutateStages]);
+
+  
   const handleAddActivity = useCallback(
     async (activityData) => {
       try {
@@ -171,7 +213,7 @@ export default function CampaignCRMPage() {
     [mutateActivities],
   );
 
-  // Drag handlers
+  
   const handleDragStart = useCallback(
     (event) => {
       const { active } = event;
@@ -194,7 +236,7 @@ export default function CampaignCRMPage() {
       const deal = deals.find((d) => d.id === dealId);
       if (!deal) return;
 
-      // Determine target stage
+      
       let targetStageId;
       if (over.data?.current?.type === "column") {
         targetStageId = over.id;
@@ -202,7 +244,7 @@ export default function CampaignCRMPage() {
         const overDeal = deals.find((d) => d.id === over.id);
         targetStageId = overDeal?.stage;
       } else {
-        // Dropped on a column droppable
+        
         targetStageId = over.id;
       }
 
@@ -213,12 +255,12 @@ export default function CampaignCRMPage() {
     [deals, moveDealToStage],
   );
 
-  // Handle deal click
+  
   const handleDealClick = useCallback((deal) => {
     setSelectedDeal(deal);
   }, []);
 
-  // Handle stage change from detail panel
+  
   const handlePanelStageChange = useCallback(
     (dealId, fromStageId, toStageId) => {
       moveDealToStage(dealId, fromStageId, toStageId);
@@ -226,12 +268,12 @@ export default function CampaignCRMPage() {
     [moveDealToStage],
   );
 
-  // Auto-seed stages if none exist
+  
   const handleSeedStages = () => {
     seedStages({ campaign: campaignId });
   };
 
-  // After a lead is added via the dialog, create a CRM deal for only that lead
+  
   const handleLeadAdded = useCallback(
     async ({ email }) => {
       if (stages.length === 0 || !email) return;
@@ -245,7 +287,7 @@ export default function CampaignCRMPage() {
         });
         mutateDeals();
       } catch {
-        // Best-effort, lead was already added
+        
       }
     },
     [stages, campaignId, mutateDeals],
@@ -253,7 +295,7 @@ export default function CampaignCRMPage() {
 
   const isLoading = stagesLoading || dealsLoading;
 
-  // Empty state - no stages
+  
   if (!isLoading && stages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
@@ -273,7 +315,7 @@ export default function CampaignCRMPage() {
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
+      {}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500">
@@ -288,6 +330,9 @@ export default function CampaignCRMPage() {
           >
             <UserPlusIcon className="w-3.5 h-3.5 mr-1.5" />
             Add Lead
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleBulkSync}>
+            Sync all leads
           </Button>
           <Button
             variant="outline"
@@ -311,7 +356,7 @@ export default function CampaignCRMPage() {
         </div>
       </div>
 
-      {/* Kanban Board */}
+      {}
       {isLoading ? (
         <div className="flex items-center justify-center h-[500px] border border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           <div className="border border-black p-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
@@ -330,7 +375,7 @@ export default function CampaignCRMPage() {
         />
       )}
 
-      {/* Stage Manager Dialog */}
+      {}
       <StageManager
         open={stageManagerOpen}
         setOpen={setStageManagerOpen}
@@ -340,7 +385,7 @@ export default function CampaignCRMPage() {
         onDelete={handleDeleteStage}
       />
 
-      {/* Add Lead Dialog */}
+      {}
       <AddLeadDialog
         open={addLeadDialogOpen}
         setOpen={setAddLeadDialogOpen}
@@ -348,7 +393,7 @@ export default function CampaignCRMPage() {
         onSuccess={handleLeadAdded}
       />
 
-      {/* Deal Detail Panel */}
+      {}
       <DealDetailPanel
         open={!!selectedDeal}
         onClose={() => setSelectedDeal(null)}
@@ -357,6 +402,7 @@ export default function CampaignCRMPage() {
         activities={activities}
         onStageChange={handlePanelStageChange}
         onAddActivity={handleAddActivity}
+        onDeleteDeal={handleDeleteDeal}
       />
     </div>
   );

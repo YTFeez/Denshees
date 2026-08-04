@@ -12,9 +12,7 @@ export function SettingsNav() {
     { name: "Account", href: "/settings/account" },
     { name: "Billing", href: "/settings/billing" },
 
-    // { name: "Preferences", href: "/settings/preferences" },
-    // { name: "API Keys", href: "/settings/api-keys" },
-    // { name: "Billing", href: "/settings/billing" },
+
   ];
 
   return (

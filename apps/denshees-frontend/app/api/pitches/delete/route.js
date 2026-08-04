@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// Deletes the LAST follow-up stage of a campaign. Restricted to the highest
-// stage (never stage 0 / the first email) to keep the stage sequence contiguous.
-// Blocked when any lead is currently at or past that stage, since removing its
-// template would leave the sender with no pitch to send (→ FAILED).
 export async function DELETE(request) {
   const searchParams = new URL(request.url).searchParams;
   const pitchId = searchParams.get("pitch");
@@ -30,49 +26,71 @@ export async function DELETE(request) {
       );
     }
 
-    // Must be the highest-numbered stage.
-    const last = await prisma.pitchEmail.findFirst({
-      where: { campaignId: pitch.campaignId },
-      orderBy: { stage: "desc" },
-      select: { stage: true },
-    });
-
-    if (last?.stage !== pitch.stage) {
-      return NextResponse.json(
-        { message: "Only the last follow-up can be deleted." },
-        { status: 400 },
-      );
-    }
-
-    // Guard: don't strand leads sitting at or beyond this stage.
+    
     const inFlight = await prisma.campaignEmail.count({
       where: {
         campaignId: pitch.campaignId,
-        stage: { gte: pitch.stage },
-        status: { in: ["PENDING", "RUNNING"] },
+        currentPitchId: pitch.id,
+        status: { in: ["PENDING", "RUNNING", "REPLIED"] },
       },
     });
 
     if (inFlight > 0) {
       return NextResponse.json(
         {
-          message: `Can't remove this follow-up — ${inFlight} lead(s) are currently at this stage. Wait until they progress or reply.`,
+          message: `Can't remove this follow-up — ${inFlight} lead(s) are currently on it. Wait until they progress or reply.`,
         },
         { status: 409 },
       );
     }
 
-    // Delete the pitch and shrink the completion cap in lockstep.
-    // Remaining stages are 0..(pitch.stage - 1), so maxStageCount = pitch.stage.
-    await prisma.$transaction([
-      prisma.pitchEmail.delete({ where: { id: pitch.id } }),
-      prisma.campaign.update({
-        where: { id: pitch.campaignId },
-        data: { maxStageCount: pitch.stage },
-      }),
-    ]);
+    await prisma.$transaction(async (tx) => {
+      const outgoingNoReply = await tx.pitchFlowEdge.findFirst({
+        where: {
+          campaignId: pitch.campaignId,
+          fromPitchId: pitch.id,
+          condition: "NO_REPLY",
+        },
+      });
+      const nextId = outgoingNoReply?.toPitchId ?? null;
 
-    return NextResponse.json({ message: "Follow-up removed", stage: pitch.stage });
+      const incoming = await tx.pitchFlowEdge.findMany({
+        where: {
+          campaignId: pitch.campaignId,
+          toPitchId: pitch.id,
+        },
+      });
+
+      for (const edge of incoming) {
+        const rewire =
+          edge.condition === "NO_REPLY" || edge.condition === "ALWAYS"
+            ? nextId
+            : null;
+        await tx.pitchFlowEdge.update({
+          where: { id: edge.id },
+          data: { toPitchId: rewire },
+        });
+      }
+
+      await tx.pitchFlowEdge.deleteMany({
+        where: { fromPitchId: pitch.id },
+      });
+
+      await tx.pitchEmail.delete({ where: { id: pitch.id } });
+
+      const remaining = await tx.pitchEmail.count({
+        where: { campaignId: pitch.campaignId },
+      });
+      await tx.campaign.update({
+        where: { id: pitch.campaignId },
+        data: { maxStageCount: Math.max(remaining, 1) },
+      });
+    });
+
+    return NextResponse.json({
+      message: "Follow-up removed",
+      stage: pitch.stage,
+    });
   } catch (error) {
     console.error(`[API] Error deleting pitch ${pitchId}:`, error);
     return NextResponse.json(

@@ -44,13 +44,13 @@ export default function CampaignSettingsPage() {
         </p>
       </div>
 
-      {/* Campaign Settings Form */}
+      {}
       <CampaignSettingsForm campaign={campaignId} campaignData={campaignData} />
 
-      {/* Email Settings */}
+      {}
       <EmailSettings campaignId={campaignId} />
 
-      {/* Danger Zone */}
+      {}
       <DangerZone campaignId={campaignId} />
     </div>
   );

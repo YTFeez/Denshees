@@ -53,7 +53,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      {/* Left section - Feature showcase */}
+      {}
       <div className="flex-1 bg-white p-8 md:p-12 flex flex-col justify-center">
         <div className="max-w-md mx-auto md:mx-0 md:ml-auto">
           <h1 className="text-4xl font-bold mb-6 tracking-tight">Denshees</h1>
@@ -129,7 +129,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right section - Authentication */}
+      {}
       <div className="flex-1 bg-gray-50 p-8 md:p-12 flex items-center justify-center">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">

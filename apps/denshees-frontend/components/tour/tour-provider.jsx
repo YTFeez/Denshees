@@ -17,8 +17,7 @@ import AppPasswordModal from "./app-password-modal";
 const TourContext = createContext({ isTourActive: false });
 export const useTour = () => useContext(TourContext);
 
-// Resolves once the selector exists in the DOM — lets `before` hooks block a
-// step until its target has mounted instead of guessing with timeouts.
+
 const waitForElement = (selector, timeout = 5000) =>
   new Promise((resolve, reject) => {
     const start = Date.now();
@@ -32,9 +31,7 @@ const waitForElement = (selector, timeout = 5000) =>
     check();
   });
 
-// Opens the create-campaign dialog if it isn't already, waiting until its
-// fields are mounted. Used by the dialog steps so the tour self-heals even if
-// the dialog was never opened (or got closed) before the step renders.
+
 const ensureCreateDialogOpen = async () => {
   if (document.getElementById("title")) return;
   document.getElementById("tour-new-campaign-btn")?.click();
@@ -111,14 +108,13 @@ const STEPS = [
   },
 ];
 
-// Steps that need special handling, located by target so the flow logic
-// survives steps being added or removed.
+
 const stepIndexOf = (target) => STEPS.findIndex((s) => s.target === target);
 const TITLE_STEP = stepIndexOf("#title");
 const DESC_STEP = stepIndexOf("#desc");
 const CREATE_STEP = stepIndexOf("#tour-create-campaign-submit");
 
-// Color tokens + behavior flags — passed as `options` prop in v3
+
 const joyrideOptions = {
   arrowColor: "#ffffff",
   backgroundColor: "#ffffff",
@@ -126,14 +122,13 @@ const joyrideOptions = {
   primaryColor: "#000000",
   textColor: "#111827",
   zIndex: 10000,
-  // No back button
+
   buttons: ["close", "primary"],
-  // Prevent overlay clicks from closing the tour — fixes Radix portal
-  // dropdowns (Select, Combobox, etc.) that render outside the spotlight
+
   overlayClickAction: false,
 };
 
-// CSS overrides — passed as `styles` prop in v3
+
 const joyrideStyles = {
   tooltip: {
     borderRadius: 0,
@@ -190,16 +185,13 @@ export function TourProvider({ children }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const prevPathnameRef = useRef(pathname);
-  // Ref keeps the latest stepIndex readable inside effects without stale closures
+
   const stepIndexRef = useRef(0);
   useEffect(() => {
     stepIndexRef.current = stepIndex;
   }, [stepIndex]);
 
-  // Start the tour once for users who haven't finished it (DB-backed flag).
-  // `startedRef` is set when the timer fires — not when scheduled — so React
-  // StrictMode's mount→cleanup→mount (which clears the pending timer) still
-  // reschedules instead of latching the guard and killing the tour.
+
   const startedRef = useRef(false);
   useEffect(() => {
     if (startedRef.current || !user || user.tourCompleted) return;
@@ -211,8 +203,7 @@ export function TourProvider({ children }) {
     return () => clearTimeout(t);
   }, [user, router]);
 
-  // Detect navigation from the campaigns list → /campaigns/[id] after the
-  // create dialog submits
+
   useEffect(() => {
     const prev = prevPathnameRef.current;
     prevPathnameRef.current = pathname;
@@ -235,7 +226,7 @@ export function TourProvider({ children }) {
   const completeTour = useCallback(() => {
     setRun(false);
     setShowModal(true);
-    // Persist so the tour never shows again — completed, skipped, or closed.
+
     updateUser({ tourCompleted: true });
     if (token) {
       fetch("/api/auth/complete-tour", {
@@ -265,15 +256,15 @@ export function TourProvider({ children }) {
 
       if (action === "prev") return;
 
-      // Moving forward — validate required fields before advancing
+
       switch (index) {
         case 0:
-          // TITLE_STEP's before hook opens the create dialog and waits for it
+
           setStepIndex(TITLE_STEP);
           break;
 
         case TITLE_STEP: {
-          // title — must not be empty
+
           const title = document.getElementById("title")?.value?.trim();
           if (!title) {
             toast.error("Please enter a campaign title before continuing.");
@@ -285,7 +276,7 @@ export function TourProvider({ children }) {
         }
 
         case DESC_STEP: {
-          // desc — must not be empty
+
           const desc = document.getElementById("desc")?.value?.trim();
           if (!desc) {
             toast.error("Please enter a campaign description before continuing.");
@@ -297,8 +288,7 @@ export function TourProvider({ children }) {
         }
 
         case CREATE_STEP:
-          // submit → dialog creates the campaign and navigates to its page;
-          // the navigation effect advances the tour there
+
           setRun(false);
           document.getElementById("tour-create-campaign-submit")?.click();
           break;

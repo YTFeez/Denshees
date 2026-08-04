@@ -28,8 +28,8 @@ export async function POST(request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // If the account already has a password, require the current one to change
-    // it. Google-created accounts (password === null) can set one without it.
+    
+    
     if (user.password) {
       if (!currentPassword) {
         return NextResponse.json(

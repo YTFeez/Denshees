@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import useSWR from "swr";
 import {
   EmailIcon,
-  UserIcon,
   MessageSquareIcon,
   PhoneIcon,
   CalendarIcon,
   CheckSquareIcon,
   DotsHorizontalSquareIcon,
   AeroplaneIcon,
-  CancelIcon,
+  TrashIcon,
 } from "mage-icons-react/bulk";
 import { ArrowRightIcon } from "mage-icons-react/stroke";
 import { LinkedinIcon } from "mage-icons-react/social-color";
@@ -30,13 +30,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DateTime } from "luxon";
+import fetcher from "@/lib/fetcher";
+import { post } from "@/lib/apis";
+import { toast } from "sonner";
 
 const ACTIVITY_ICONS = {
   STAGE_CHANGE: ArrowRightIcon,
+  STAGE_AUTO: ArrowRightIcon,
   NOTE: MessageSquareIcon,
   EMAIL_SENT: EmailIcon,
   EMAIL_OPENED: EmailIcon,
   REPLY: EmailIcon,
+  BOUNCE: EmailIcon,
   CALL: PhoneIcon,
   MEETING: CalendarIcon,
   LINKEDIN: LinkedinIcon,
@@ -46,10 +51,12 @@ const ACTIVITY_ICONS = {
 
 const ACTIVITY_COLORS = {
   STAGE_CHANGE: "bg-blue-100 text-blue-700",
+  STAGE_AUTO: "bg-sky-100 text-sky-700",
   NOTE: "bg-yellow-100 text-yellow-700",
   EMAIL_SENT: "bg-gray-100 text-gray-700",
   EMAIL_OPENED: "bg-indigo-100 text-indigo-700",
   REPLY: "bg-purple-100 text-purple-700",
+  BOUNCE: "bg-red-100 text-red-700",
   CALL: "bg-green-100 text-green-700",
   MEETING: "bg-orange-100 text-orange-700",
   LINKEDIN: "bg-blue-100 text-blue-700",
@@ -71,18 +78,51 @@ export default function DealDetailPanel({
   onClose,
   deal,
   stages,
-  activities,
+  activities: legacyActivities,
   onStageChange,
   onAddActivity,
+  onDeleteDeal,
 }) {
   const [activityType, setActivityType] = useState("NOTE");
   const [activityDescription, setActivityDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [isReplying, setIsReplying] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const campaignId = deal?.campaign || deal?.campaignId;
+  const leadId = deal?.expand?.lead?.id || deal?.leadId;
+
+  const { data: threadData, mutate: mutateThread } = useSWR(
+    open && deal?.id ? `/api/crm/deals/${deal.id}/thread` : null,
+    fetcher,
+    { refreshInterval: open ? 15000 : 0 },
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setReplyText("");
+      setActivityDescription("");
+    }
+  }, [open, deal?.id]);
 
   if (!deal) return null;
 
-  const lead = deal.expand?.lead;
+  const lead = deal.expand?.lead || threadData?.lead;
   const currentStage = stages.find((s) => s.id === deal.stage);
+
+  const timeline =
+    threadData?.timeline?.length > 0
+      ? threadData.timeline
+      : (legacyActivities || []).map((a) => ({
+          id: a.id,
+          kind: "activity",
+          type: a.type,
+          description: a.description,
+          created: a.created,
+          fromStage: a.expand?.from_stage?.name,
+          toStage: a.expand?.to_stage?.name,
+        }));
 
   const handleStageChange = (newStageId) => {
     if (newStageId !== deal.stage) {
@@ -96,29 +136,72 @@ export default function DealDetailPanel({
     try {
       await onAddActivity({
         deal: deal.id,
-        campaign: deal.campaign,
+        campaign: campaignId,
         type: activityType,
         description: activityDescription.trim(),
       });
       setActivityDescription("");
       setActivityType("NOTE");
+      mutateThread();
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleReply = async () => {
+    if (!replyText.trim() || !leadId || !campaignId) return;
+    setIsReplying(true);
+    try {
+      await post(`/api/inbox/${campaignId}/reply`, {
+        arg: {
+          campaignEmailId: leadId,
+          text: replyText.trim(),
+        },
+      });
+      setReplyText("");
+      toast.success("Reply sent");
+      mutateThread();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to send reply");
+    } finally {
+      setIsReplying(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!onDeleteDeal) return;
+    if (!window.confirm("Delete this deal from the CRM pipeline?")) return;
+    setIsDeleting(true);
+    try {
+      await onDeleteDeal(deal.id);
+      onClose();
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent className="w-[420px] sm:w-[480px] border-l-black border-l-2 p-0 overflow-hidden flex flex-col">
-        {/* Header */}
         <SheetHeader className="px-4 py-3 border-b border-black bg-white">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <SheetTitle className="text-base">Lead Details</SheetTitle>
+            {onDeleteDeal && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs text-red-600 border-red-300"
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                <TrashIcon className="w-3 h-3 mr-1" />
+                Delete
+              </Button>
+            )}
           </div>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto">
-          {/* Lead info card */}
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 bg-black text-white rounded-full flex items-center justify-center text-sm font-bold">
@@ -134,10 +217,14 @@ export default function DealDetailPanel({
               </div>
             </div>
 
-            {/* Stage selector */}
             <div className="mt-3">
               <label className="text-xs font-medium text-gray-500 mb-1 block">
                 Pipeline Stage
+                {deal.stageLocked ? (
+                  <span className="ml-2 text-[10px] text-amber-600">
+                    (manual lock)
+                  </span>
+                ) : null}
               </label>
               <Select value={deal.stage} onValueChange={handleStageChange}>
                 <SelectTrigger className="h-8 border-black text-sm">
@@ -167,25 +254,44 @@ export default function DealDetailPanel({
               </Select>
             </div>
 
-            {/* Lead email status */}
             <div className="mt-3 flex gap-3 text-xs text-gray-500">
               <div>
                 <span className="font-medium text-gray-700">Status:</span>{" "}
                 {lead?.status || "PENDING"}
               </div>
               <div>
-                <span className="font-medium text-gray-700">Stage:</span>{" "}
-                {lead?.stage || 0}/
-                {lead?.expand?.campaign?.max_stage_count || "-"}
-              </div>
-              <div>
                 <span className="font-medium text-gray-700">Opened:</span>{" "}
-                {lead?.opened ? "Yes" : "No"}
+                {(lead?.opened || 0) > 0 ? `Yes (${lead.opened})` : "No"}
               </div>
             </div>
           </div>
 
-          {/* Add activity */}
+          {/* Reply from app */}
+          <div className="p-4 border-b border-gray-200">
+            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+              Reply
+            </h4>
+            <Textarea
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              placeholder="Write a reply to this lead…"
+              className="border-black text-sm min-h-[80px] resize-none"
+              rows={3}
+            />
+            <div className="flex justify-end mt-2">
+              <Button
+                size="sm"
+                onClick={handleReply}
+                disabled={!replyText.trim() || isReplying || !leadId}
+                className="h-7 text-xs"
+              >
+                <AeroplaneIcon className="w-3 h-3 mr-1" />
+                {isReplying ? "Sending…" : "Send reply"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Log activity */}
           <div className="p-4 border-b border-gray-200 bg-gray-50/50">
             <div className="flex items-center gap-2 mb-2">
               <Select value={activityType} onValueChange={setActivityType}>
@@ -202,15 +308,13 @@ export default function DealDetailPanel({
               </Select>
               <span className="text-xs text-gray-400">Log an activity</span>
             </div>
-            <div className="flex gap-2">
-              <Textarea
-                value={activityDescription}
-                onChange={(e) => setActivityDescription(e.target.value)}
-                placeholder="Add a note, log a call..."
-                className="border-black text-sm min-h-[60px] resize-none"
-                rows={2}
-              />
-            </div>
+            <Textarea
+              value={activityDescription}
+              onChange={(e) => setActivityDescription(e.target.value)}
+              placeholder="Add a note, log a call…"
+              className="border-black text-sm min-h-[60px] resize-none"
+              rows={2}
+            />
             <div className="flex justify-end mt-2">
               <Button
                 size="sm"
@@ -218,90 +322,66 @@ export default function DealDetailPanel({
                 disabled={!activityDescription.trim() || isSubmitting}
                 className="h-7 text-xs"
               >
-                <AeroplaneIcon className="w-3 h-3 mr-1" />
                 Log Activity
               </Button>
             </div>
           </div>
 
-          {/* Activity timeline */}
+          {/* Unified timeline */}
           <div className="p-4">
             <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">
               Activity Timeline
             </h4>
 
-            {activities.length === 0 ? (
+            {timeline.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-6">
-                No activities yet
+                No activities yet — deals sync when emails are sent
               </p>
             ) : (
               <div className="space-y-0">
-                {activities.map((activity, idx) => {
+                {timeline.map((item, idx) => {
                   const Icon =
-                    ACTIVITY_ICONS[activity.type] || DotsHorizontalSquareIcon;
+                    ACTIVITY_ICONS[item.type] || DotsHorizontalSquareIcon;
                   const colorClass =
-                    ACTIVITY_COLORS[activity.type] ||
-                    "bg-gray-100 text-gray-700";
+                    ACTIVITY_COLORS[item.type] || "bg-gray-100 text-gray-700";
+                  const created = item.created
+                    ? DateTime.fromISO(
+                        typeof item.created === "string"
+                          ? item.created
+                          : new Date(item.created).toISOString(),
+                      )
+                    : null;
 
                   return (
-                    <div key={activity.id} className="flex gap-3 relative">
-                      {/* Timeline line */}
-                      {idx < activities.length - 1 && (
+                    <div key={item.id} className="flex gap-3 relative">
+                      {idx < timeline.length - 1 && (
                         <div className="absolute left-[13px] top-[28px] bottom-0 w-px bg-gray-200" />
                       )}
-
-                      {/* Icon */}
                       <div
                         className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${colorClass}`}
                       >
                         <Icon className="w-[13px] h-[13px]" />
                       </div>
-
-                      {/* Content */}
                       <div className="flex-1 pb-4 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-medium">
-                            {activity.type.replace(/_/g, " ")}
+                            {(item.type || "OTHER").replace(/_/g, " ")}
                           </span>
                           <span className="text-[10px] text-gray-400 shrink-0">
-                            {DateTime.fromISO(activity.created).toRelative()}
+                            {created?.isValid ? created.toRelative() : ""}
                           </span>
                         </div>
-
-                        {/* Stage change details */}
-                        {activity.type === "STAGE_CHANGE" && (
+                        {(item.fromStage || item.toStage) && (
                           <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-500">
-                            <span
-                              className="inline-block w-2 h-2 rounded-full"
-                              style={{
-                                backgroundColor:
-                                  activity.expand?.from_stage?.color || "#ccc",
-                              }}
-                            />
-                            <span>
-                              {activity.expand?.from_stage?.name || "—"}
-                            </span>
+                            <span>{item.fromStage || "—"}</span>
                             <ArrowRightIcon className="w-[10px] h-[10px]" />
-                            <span
-                              className="inline-block w-2 h-2 rounded-full"
-                              style={{
-                                backgroundColor:
-                                  activity.expand?.to_stage?.color || "#ccc",
-                              }}
-                            />
-                            <span>
-                              {activity.expand?.to_stage?.name || "—"}
-                            </span>
+                            <span>{item.toStage || "—"}</span>
                           </div>
                         )}
-
-                        {activity.description && (
-                          <p
-                            className="text-xs text-gray-600 mt-1 whitespace-pre-wrap"
-                            dangerouslySetInnerHTML={{
-                              __html: activity.description,
-                            }}
-                          />
+                        {item.description && (
+                          <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap break-words">
+                            {String(item.description).replace(/<[^>]*>/g, "")}
+                          </p>
                         )}
                       </div>
                     </div>

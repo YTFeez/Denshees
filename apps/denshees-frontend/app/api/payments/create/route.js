@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import DodoPayments from "dodopayments";
 
-// Initialize DodoPayments client
+
 const client = new DodoPayments({
   bearerToken: process.env["DODO_PAYMENTS_API_KEY"],
-  //   environment: "test_mode",
+  
 });
 
 export async function POST(request) {
@@ -12,7 +12,7 @@ export async function POST(request) {
     const body = await request.json();
     const { creditType, quantity, userInfo } = body;
 
-    // Validate required fields
+    
     if (!creditType || !quantity || !userInfo) {
       return NextResponse.json(
         { error: "Missing required fields: creditType, quantity, userInfo" },
@@ -20,7 +20,7 @@ export async function POST(request) {
       );
     }
 
-    // Define product IDs for different credit types
+    
     const productIds = {
       email: "pdt_c4RWntNhdXKORtUOwtVOW",
       ai: "pdt_Rwecty69q6lJdpnP6dCwb",
@@ -35,7 +35,7 @@ export async function POST(request) {
     }
 
     console.log(userInfo);
-    // Create payment with DodoPayments
+    
     const payment = await client.payments.create({
       return_url: `https://app.denshees.com/dashboard`,
       payment_link: true,
@@ -60,10 +60,10 @@ export async function POST(request) {
     });
 
     console.log("Payment created:", payment);
-    // Log payment creation for debugging
+    
     console.log("Payment created:", payment.payment_id);
 
-    // Return payment details
+    
     return NextResponse.json({
       success: true,
       payment_id: payment.payment_id,
@@ -75,9 +75,9 @@ export async function POST(request) {
   } catch (error) {
     console.error("Payment creation error:", error);
 
-    // Handle different types of errors
+    
     if (error.response) {
-      // DodoPayments API error
+      
       return NextResponse.json(
         {
           error: "Payment service error",
@@ -86,13 +86,13 @@ export async function POST(request) {
         { status: error.response.status || 500 }
       );
     } else if (error.request) {
-      // Network error
+      
       return NextResponse.json(
         { error: "Network error - unable to reach payment service" },
         { status: 503 }
       );
     } else {
-      // Other errors
+      
       return NextResponse.json(
         { error: "Internal server error", details: error.message },
         { status: 500 }
@@ -101,7 +101,7 @@ export async function POST(request) {
   }
 }
 
-// Handle unsupported methods
+
 export async function GET() {
   return NextResponse.json(
     { error: "Method not allowed. Use POST to create payments." },

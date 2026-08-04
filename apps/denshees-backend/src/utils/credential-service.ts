@@ -1,20 +1,17 @@
-/**
- * Credential management service for email processing
- */
+
+
+
 
 import nodemailer from "nodemailer";
 import { v4 as uuidv4 } from "uuid";
 import { log } from "./logger.js";
 import type { CredentialRecord } from "../models/email.js";
 
-// Store transporters by credential id
+
 export const emailTransporters = new Map<string, nodemailer.Transporter>();
 
-/**
- * Extracts unique email credentials from campaign emails.
- * @param campaignEmails - List of campaign email objects.
- * @returns Unique email credentials.
- */
+
+
 export function extractUniqueCredentials(
   campaignEmails: any[],
 ): CredentialRecord[] {
@@ -51,10 +48,8 @@ export function extractUniqueCredentials(
   return uniqueCredentials;
 }
 
-/**
- * Creates Nodemailer transport instances for each unique credential.
- * @param credentialsList - List of email credentials.
- */
+
+
 export function setupEmailTransporters(
   credentialsList: CredentialRecord[],
 ): void {
@@ -70,14 +65,14 @@ export function setupEmailTransporters(
   let failedTransporters = 0;
 
   credentialsList.forEach((cred) => {
-    // Skip if we already have a working transporter for this credential
+    
     if (emailTransporters.has(cred.id)) {
       log("INFO", `Transporter already exists for credential ${cred.id}`, txId);
       skippedTransporters++;
       return;
     }
 
-    // Validate credential data
+    
     if (!cred.host || !cred.username || !cred.password) {
       log(
         "ERROR",
@@ -102,23 +97,23 @@ export function setupEmailTransporters(
 
       const transporter = nodemailer.createTransport({
         host: cred.host,
-        port: cred.port || (cred.secure ? 465 : 587), // Default ports if not specified
+        port: cred.port || (cred.secure ? 465 : 587), 
         secure: cred.secure,
         auth: {
           user: cred.username,
           pass: cred.password,
         },
-        // Add connection pool settings
+        
         pool: true,
         maxConnections: 5,
         maxMessages: 100,
-        // Add a reasonable timeout
+        
         connectionTimeout: 10000,
-        // Disable opportunistic TLS to prevent connection issues
+        
         opportunisticTLS: false,
-        // Set to true if using Gmail
+        
         requireTLS: cred.host.includes("gmail"),
-        // Debug mode for troubleshooting
+        
         debug: process.env.NODE_ENV !== "production",
         logger: process.env.NODE_ENV !== "production",
       });
@@ -126,7 +121,7 @@ export function setupEmailTransporters(
       emailTransporters.set(cred.id, transporter);
       newTransporters++;
 
-      // Mask username for logging
+      
       const maskedUsername = cred.username.includes("@")
         ? cred.username.substring(0, 3) + "***@" + cred.username.split("@")[1]
         : cred.username.substring(0, 3) + "***";
@@ -157,11 +152,8 @@ export function setupEmailTransporters(
   });
 }
 
-/**
- * Gets a transport instance by credential ID.
- * @param credentialId - Credential ID of the email sender.
- * @returns Nodemailer transporter instance or null.
- */
+
+
 export function getEmailTransporter(
   credentialId: string,
 ): nodemailer.Transporter | null {

@@ -12,7 +12,7 @@ export async function POST(request) {
       timestamp,
     });
 
-    // Validate webhook structure
+    
     if (!data || !data.payment_id || !data.customer) {
       console.error("Invalid webhook structure:", webhook);
       return NextResponse.json(
@@ -33,7 +33,7 @@ export async function POST(request) {
       error_message,
     } = data;
 
-    // Handle different webhook types
+    
     switch (type) {
       case "payment.succeeded":
         await handlePaymentSuccess({
@@ -78,7 +78,7 @@ export async function POST(request) {
         break;
     }
 
-    // Return success response to acknowledge webhook
+    
     return NextResponse.json({
       success: true,
       message: "Webhook processed successfully",
@@ -107,17 +107,17 @@ async function handlePaymentSuccess({
   try {
     console.log(`Processing successful payment: ${payment_id}`);
 
-    // Validate that digital products were delivered
+    
     if (!digital_products_delivered) {
       console.warn(`Digital products not delivered for payment: ${payment_id}`);
     }
 
-    // Process each product in the cart
+    
     if (product_cart && Array.isArray(product_cart)) {
       for (const item of product_cart) {
         const { product_id, quantity } = item;
 
-        // Determine credit type based on product ID
+        
         let creditType = null;
         if (product_id === "pdt_c4RWntNhdXKORtUOwtVOW") {
           creditType = "email";
@@ -137,7 +137,7 @@ async function handlePaymentSuccess({
       }
     }
 
-    // Log successful processing
+    
     console.log(
       `Payment ${payment_id} processed successfully for customer ${customer.email}`,
     );
@@ -158,7 +158,7 @@ async function handlePaymentFailure({
     console.log(`Processing ${status} payment: ${payment_id}`);
     console.log(`Reason: ${error_code} - ${error_message}`);
 
-    // Log failed/cancelled payment for analytics
+    
     console.log(`Payment ${status} logged for ${customer.email}:`, {
       payment_id,
       customer_email: customer.email,
@@ -179,7 +179,7 @@ async function handlePaymentProcessing({ payment_id, customer, total_amount }) {
     console.log(`Processing payment in progress: ${payment_id}`);
     console.log(`Customer: ${customer.email}, Amount: ${total_amount}`);
 
-    // Log processing payment for tracking
+    
     console.log(`Processing payment logged for ${customer.email}:`, {
       payment_id,
       customer_email: customer.email,
@@ -228,7 +228,7 @@ async function updateUserCredits({
       `Adding ${quantity} ${creditType} credits from payment ${payment_id}`,
     );
 
-    // Find user by email
+    
     const user = await prisma.user.findUnique({
       where: { email },
     });
@@ -237,7 +237,7 @@ async function updateUserCredits({
       throw new Error(`User not found with email: ${email}`);
     }
 
-    // Update credits using atomic increment
+    
     let updateData = {};
     if (creditType === "email") {
       updateData.credits = { increment: quantity };
@@ -262,7 +262,7 @@ async function updateUserCredits({
       aiCredits: updatedUser.aiCredits,
     });
 
-    // Create transaction log entry
+    
     try {
       await prisma.creditTransaction.create({
         data: {
@@ -293,7 +293,7 @@ async function updateUserCredits({
   }
 }
 
-// Handle unsupported methods
+
 export async function GET() {
   return NextResponse.json(
     {

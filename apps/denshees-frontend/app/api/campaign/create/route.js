@@ -1,10 +1,8 @@
 import { jwtDecode } from "jwt-decode";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { seedFlowGraphFromPitches } from "@/lib/seed-flow-graph";
 
-// Sequence shape is edited in the Builder after creation; campaigns start with
-// a default sequence. Count/delay overrides are still accepted in the body for
-// API callers (e.g. the AI agent's create_campaign tool).
 const DEFAULT_STAGE_COUNT = 4;
 const DEFAULT_DELAY_DAYS = 1;
 
@@ -38,31 +36,71 @@ export async function POST(request) {
       "Hey {{name}}, I am just following up on my previous emails.";
     const follow_up_subject = "Following Up {{name}}!";
 
-    await prisma.pitchEmail.create({
-      data: {
-        title: "First Reach out",
-        message: first_pitch,
-        subject: subject_1,
-        campaignId: campaign.id,
-        stage: 0,
-        delayDays,
-      },
-    });
+    const createdPitches = [];
+
+    createdPitches.push(
+      await prisma.pitchEmail.create({
+        data: {
+          title: "First Reach out",
+          message: first_pitch,
+          subject: subject_1,
+          campaignId: campaign.id,
+          stage: 0,
+          delayDays,
+        },
+      }),
+    );
 
     if (stageCount > 1) {
       for (let i = 1; i < stageCount; i++) {
-        await prisma.pitchEmail.create({
-          data: {
-            title: `Follow Up ${i}`,
-            message: later_pitches,
-            subject: follow_up_subject,
-            campaignId: campaign.id,
-            stage: i,
-            delayDays,
-          },
-        });
+        createdPitches.push(
+          await prisma.pitchEmail.create({
+            data: {
+              title: `Follow Up ${i}`,
+              message: later_pitches,
+              subject: follow_up_subject,
+              campaignId: campaign.id,
+              stage: i,
+              delayDays,
+            },
+          }),
+        );
       }
     }
+
+    
+    const edgeRows = [
+      {
+        campaignId: campaign.id,
+        fromPitchId: null,
+        toPitchId: createdPitches[0].id,
+        condition: "ALWAYS",
+      },
+    ];
+    for (let i = 0; i < createdPitches.length; i++) {
+      const pitch = createdPitches[i];
+      const next = createdPitches[i + 1];
+      edgeRows.push({
+        campaignId: campaign.id,
+        fromPitchId: pitch.id,
+        toPitchId: next ? next.id : null,
+        condition: "NO_REPLY",
+      });
+      edgeRows.push({
+        campaignId: campaign.id,
+        fromPitchId: pitch.id,
+        toPitchId: null,
+        condition: "REPLIED",
+      });
+      edgeRows.push({
+        campaignId: campaign.id,
+        fromPitchId: pitch.id,
+        toPitchId: null,
+        condition: "OPENED",
+      });
+    }
+    await prisma.pitchFlowEdge.createMany({ data: edgeRows });
+    await seedFlowGraphFromPitches(prisma, campaign.id, createdPitches);
 
     return NextResponse.json({ message: "Campaign created", campaign });
   } catch (error) {

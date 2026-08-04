@@ -1,18 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useReactFlow } from "@xyflow/react";
 
-/**
- * The fitView prop only applies to the initial render; when stages are added
- * or removed the graph outgrows the viewport. Re-fit whenever the structure
- * key (derived from node ids) changes.
- */
 const AutoFit = ({ structureKey }) => {
   const { fitView } = useReactFlow();
+  const prevKey = useRef("");
 
   useEffect(() => {
-    fitView({ padding: 0.2, duration: 300 });
+    if (!structureKey || structureKey === prevKey.current) return;
+    const isFirst = !prevKey.current;
+    prevKey.current = structureKey;
+
+    const t = setTimeout(() => {
+      fitView({ padding: 0.2, duration: isFirst ? 0 : 280 });
+    }, 40);
+    return () => clearTimeout(t);
   }, [structureKey, fitView]);
 
   return null;

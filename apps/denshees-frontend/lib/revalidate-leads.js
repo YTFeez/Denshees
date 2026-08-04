@@ -1,9 +1,7 @@
 import { mutate } from "swr";
 
-/**
- * Revalidate every SWR cache key for a campaign's paginated leads list.
- * Exact-key mutate fails because the live key includes search/filters/page.
- */
+
+
 export function revalidateCampaignLeads(campaignId) {
   if (!campaignId) return Promise.resolve();
   const marker = `campaign=${campaignId}`;

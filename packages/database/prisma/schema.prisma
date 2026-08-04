@@ -40,6 +40,7 @@ model User {
   leadLists          LeadList[]
   leads              Lead[]
   chatMessages       AgentChatMessage[]
+  notifications      Notification[]
 
   @@map("users")
 }
@@ -81,6 +82,9 @@ model Campaign {
 
   campaignEmails               CampaignEmail[]
   pitches                      PitchEmail[]
+  pitchFlowEdges               PitchFlowEdge[]
+  flowNodes                    CampaignFlowNode[]
+  flowWires                    CampaignFlowWire[]
   crmStages                    CrmStage[]
   crmActivities                CrmActivity[]
   crmDeals                     CrmDeal[]
@@ -139,6 +143,10 @@ model CampaignEmail {
   personalization      Json?
   sentAt               DateTime?        @map("sent_at")
   stage                Int?             @default(0)
+  currentPitchId       String?          @map("current_pitch_id")
+  currentPitch         PitchEmail?      @relation("LeadCurrentPitch", fields: [currentPitchId], references: [id], onDelete: SetNull)
+  currentNodeId        String?          @map("current_node_id")
+  currentNode          CampaignFlowNode? @relation("LeadCurrentNode", fields: [currentNodeId], references: [id], onDelete: SetNull)
   campaignId           String?          @map("campaign")
   campaign             Campaign?        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   opened               Int?             @default(0)
@@ -155,6 +163,8 @@ model CampaignEmail {
   crmDeals         CrmDeal[]
 
   @@index([email])
+  @@index([currentPitchId])
+  @@index([currentNodeId])
   @@map("campaigns_email")
 }
 
@@ -203,12 +213,80 @@ model PitchEmail {
   message        String?   @db.Text
   dynamicSubject String?   @map("dynamic_subject")
   delayDays      Int?      @default(1) @map("delay_days")
+  // Builder canvas position (Blueprint layout)
+  flowX          Float?    @map("flow_x")
+  flowY          Float?    @map("flow_y")
   created        DateTime  @default(now())
   updated        DateTime  @updatedAt
 
   campaignMessages CampaignMessage[]
+  leadsAtPitch     CampaignEmail[]   @relation("LeadCurrentPitch")
+  edgesFrom        PitchFlowEdge[]   @relation("EdgeFromPitch")
+  edgesTo          PitchFlowEdge[]   @relation("EdgeToPitch")
+  flowNodes        CampaignFlowNode[]
 
   @@map("pitches_email")
+}
+
+// Conditional graph edges for campaign email flow (legacy — prefer CampaignFlowWire)
+// condition: ALWAYS | REPLIED | OPENED | NO_REPLY
+// fromPitchId null = campaign start; toPitchId null = end/stop
+model PitchFlowEdge {
+  id          String     @id @default(cuid())
+  campaignId  String     @map("campaign_id")
+  campaign    Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  fromPitchId String?    @map("from_pitch_id")
+  fromPitch   PitchEmail? @relation("EdgeFromPitch", fields: [fromPitchId], references: [id], onDelete: Cascade)
+  toPitchId   String?    @map("to_pitch_id")
+  toPitch     PitchEmail? @relation("EdgeToPitch", fields: [toPitchId], references: [id], onDelete: SetNull)
+  condition   String
+  created     DateTime   @default(now())
+  updated     DateTime   @updatedAt
+
+  @@unique([campaignId, fromPitchId, condition])
+  @@index([campaignId])
+  @@map("pitch_flow_edges")
+}
+
+// Free block-graph nodes (Start / Email / Wait / End)
+model CampaignFlowNode {
+  id         String   @id @default(cuid())
+  campaignId String   @map("campaign_id")
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  type       String // START | EMAIL | WAIT | END
+  pitchId    String?  @map("pitch_id")
+  pitch      PitchEmail? @relation(fields: [pitchId], references: [id], onDelete: SetNull)
+  config     Json?
+  flowX      Float?   @map("flow_x")
+  flowY      Float?   @map("flow_y")
+  created    DateTime @default(now())
+  updated    DateTime @updatedAt
+
+  wiresFrom CampaignFlowWire[] @relation("WireFromNode")
+  wiresTo   CampaignFlowWire[] @relation("WireToNode")
+  leadsHere CampaignEmail[]    @relation("LeadCurrentNode")
+
+  @@index([campaignId])
+  @@index([pitchId])
+  @@map("campaign_flow_nodes")
+}
+
+model CampaignFlowWire {
+  id           String           @id @default(cuid())
+  campaignId   String           @map("campaign_id")
+  campaign     Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sourceNodeId String           @map("source_node_id")
+  sourceNode   CampaignFlowNode @relation("WireFromNode", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  sourceHandle String           @map("source_handle")
+  targetNodeId String           @map("target_node_id")
+  targetNode   CampaignFlowNode @relation("WireToNode", fields: [targetNodeId], references: [id], onDelete: Cascade)
+  targetHandle String           @default("in") @map("target_handle")
+  created      DateTime         @default(now())
+  updated      DateTime         @updatedAt
+
+  @@unique([campaignId, sourceNodeId, sourceHandle])
+  @@index([campaignId])
+  @@map("campaign_flow_wires")
 }
 
 // ==========================================
@@ -252,18 +330,23 @@ model CrmActivity {
 // CRM Deals
 // ==========================================
 model CrmDeal {
-  id         String         @id @default(cuid())
-  leadId     String?        @map("lead")
-  lead       CampaignEmail? @relation(fields: [leadId], references: [id])
-  campaignId String?        @map("campaign")
-  campaign   Campaign?      @relation(fields: [campaignId], references: [id])
-  stageId    String?        @map("stage")
-  stage      CrmStage?      @relation(fields: [stageId], references: [id])
-  created    DateTime       @default(now())
-  updated    DateTime       @updatedAt
+  id          String         @id @default(cuid())
+  leadId      String?        @map("lead")
+  lead        CampaignEmail? @relation(fields: [leadId], references: [id])
+  campaignId  String?        @map("campaign")
+  campaign    Campaign?      @relation(fields: [campaignId], references: [id])
+  stageId     String?        @map("stage")
+  stage       CrmStage?      @relation(fields: [stageId], references: [id])
+  // When true, auto CRM sync will not move this deal's stage
+  stageLocked Boolean        @default(false) @map("stage_locked")
+  created     DateTime       @default(now())
+  updated     DateTime       @updatedAt
 
-  activities CrmActivity[]
+  activities    CrmActivity[]
+  notifications Notification[]
 
+  @@index([leadId])
+  @@index([campaignId])
   @@map("crm_deals")
 }
 
@@ -273,6 +356,8 @@ model CrmDeal {
 model CrmStage {
   id         String    @id @default(cuid())
   name       String?
+  // Stable key for auto-sync: email_added | reply_received | no_reply | won | lost | meeting | linkedin
+  key        String?
   campaignId String?   @map("campaign")
   campaign   Campaign? @relation(fields: [campaignId], references: [id])
   order      Int?
@@ -286,7 +371,31 @@ model CrmStage {
   fromActivities CrmActivity[] @relation("fromStage")
   toActivities   CrmActivity[] @relation("toStage")
 
+  @@index([campaignId, key])
   @@map("crm_stages")
+}
+
+// ==========================================
+// In-app notifications (CRM / email events)
+// ==========================================
+model Notification {
+  id         String         @id @default(cuid())
+  userId     String         @map("user_id")
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaignId String?        @map("campaign_id")
+  dealId     String?        @map("deal_id")
+  deal       CrmDeal?       @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  leadId     String?        @map("lead_id")
+  type       String // EMAIL_SENT | EMAIL_OPENED | REPLY | BOUNCE | STAGE_AUTO
+  title      String
+  body       String?        @db.Text
+  read       Boolean        @default(false)
+  created    DateTime       @default(now())
+  updated    DateTime       @updatedAt
+
+  @@index([userId, read, created])
+  @@index([leadId, type, created])
+  @@map("notifications")
 }
 
 // ==========================================

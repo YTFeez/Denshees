@@ -93,25 +93,25 @@ export default function CampaignLeadsPage() {
     },
   );
 
-  // Handle search
+  
   const handleSearch = (e) => {
     e.preventDefault();
     setSearchQuery(search);
     setPage(1);
   };
 
-  // Applying filters re-fetches from the first page.
+  
   const handleApplyFilters = (next) => {
     setFilters(next);
     setPage(1);
   };
 
-  // Handle page change
+  
   const handlePageChange = (page) => {
     setPage(page);
   };
 
-  // Setup mutation for deleting a lead
+  
   const { trigger: deleteLead } = useSWRMutation(
     "/api/lead/delete/",
     (url, args) => {
@@ -120,7 +120,7 @@ export default function CampaignLeadsPage() {
     {
       onSuccess: () => {
         toast.success("Lead deleted successfully");
-        mutate(); // Refresh the leads data
+        mutate(); 
       },
       onError: () => {
         toast.error("Failed to delete lead");
@@ -128,16 +128,16 @@ export default function CampaignLeadsPage() {
     },
   );
 
-  // Handle view timeline
+  
   const handleViewTimeline = useCallback((leadId) => {
-    // Navigate to timeline view or open modal
+    
     console.log(`View timeline for lead: ${leadId}`);
   }, []);
 
-  // Handle edit lead
+  
   const handleEditLead = useCallback(
     (leadId) => {
-      // Find the lead data from the current leads
+      
       const leadToEdit = leads.find((lead) => lead.id === leadId);
       if (leadToEdit) {
         setSelectedLead(leadToEdit);
@@ -147,7 +147,7 @@ export default function CampaignLeadsPage() {
     [leads],
   );
 
-  // Handle delete lead
+  
   const handleDeleteLead = useCallback(
     async (leadId) => {
       try {
@@ -159,13 +159,13 @@ export default function CampaignLeadsPage() {
     [deleteLead],
   );
 
-  // Fetch company chips for the entire campaign
+  
   const { data: companyChips = [] } = useSWR(
     campaignId ? `/api/contacts/companies?campaign=${campaignId}` : null,
     fetcher,
   );
 
-  // Format data for the table
+  
   const formattedData = useMemo(() => {
     return leads.map((lead) => ({
       id: lead.id,
@@ -187,7 +187,7 @@ export default function CampaignLeadsPage() {
     }));
   }, [leads, campaignId, handleViewTimeline, handleEditLead, handleDeleteLead]);
 
-  // Define columns
+  
   const columns = useMemo(
     () => [
       {
@@ -323,13 +323,13 @@ export default function CampaignLeadsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Leads Growth Chart */}
+      {}
       <div className="border border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4">
         <h3 className="text-lg font-semibold mb-2">Leads Added Over Time</h3>
         <LeadsGrowthChart growthData={growthData} />
       </div>
 
-      {/* Search and actions */}
+      {}
       <div className="flex flex-col sm:flex-row justify-between gap-4">
         <form
           onSubmit={handleSearch}
@@ -371,14 +371,14 @@ export default function CampaignLeadsPage() {
         </div>
       </div>
 
-      {/* Error message */}
+      {}
       {error && (
         <div className="border border-red-300 bg-red-50 p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           <p className="text-red-800">Failed to load leads</p>
         </div>
       )}
 
-      {/* Data table */}
+      {}
       <div className="border border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] min-h-[400px]">
         <DataTable
           columns={columns}
@@ -390,7 +390,7 @@ export default function CampaignLeadsPage() {
         />
       </div>
 
-      {/* Summary */}
+      {}
       <div className="text-sm text-gray-500">
         {totalLeads > 0 && (
           <p>
@@ -400,21 +400,21 @@ export default function CampaignLeadsPage() {
         )}
       </div>
 
-      {/* Import Dialog */}
+      {}
       <ImportLeadsDialog
         open={importDialogOpen}
         setOpen={setImportDialogOpen}
         campaign={campaignId}
       />
 
-      {/* Add Lead Dialog */}
+      {}
       <AddLeadDialog
         open={addLeadDialogOpen}
         setOpen={setAddLeadDialogOpen}
         campaign={campaignId}
       />
 
-      {/* Edit Lead Dialog */}
+      {}
       <EditLeadDialog
         open={editLeadDialogOpen}
         setOpen={setEditLeadDialogOpen}

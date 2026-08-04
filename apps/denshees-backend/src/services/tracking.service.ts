@@ -1,18 +1,10 @@
-/**
- * Service for email tracking functionality
- */
+
 
 import { v4 as uuidv4 } from "uuid";
 import { prisma } from "./prisma.service.js";
 import { log } from "../utils/logger.js";
+import { syncCrmForLeadEvent } from "./crm-sync.service.js";
 
-/**
- * Tracks an email open event
- * @param emailId - ID of the email that was opened
- * @param ip - IP address of the opener
- * @param userAgent - User agent of the opener
- * @param txId - Transaction ID for logging
- */
 export async function trackEmailOpen(
   emailId: string,
   ip: string,
@@ -20,7 +12,7 @@ export async function trackEmailOpen(
   txId = uuidv4().substring(0, 8),
 ): Promise<void> {
   try {
-    // Get the email record
+    
     const email = await prisma.campaignEmail.findUnique({
       where: { id: emailId },
     });
@@ -32,16 +24,24 @@ export async function trackEmailOpen(
 
     log("INFO", `Tracking open for email: ${emailId}`, txId);
 
-    // Create a record of the open event
+    
     await prisma.campaignOpen.create({
       data: { campaignEmailId: emailId },
     });
 
-    // Increment the opened count on the email
+    
     await prisma.campaignEmail.update({
       where: { id: emailId },
       data: { opened: { increment: 1 } },
     });
+
+    try {
+      await syncCrmForLeadEvent(emailId, "OPENED");
+    } catch (crmErr: any) {
+      log("WARN", `CRM sync on OPENED failed`, txId, {
+        error: crmErr?.message,
+      });
+    }
 
     log("INFO", `Successfully tracked open for email: ${emailId}`, txId);
   } catch (error: any) {
@@ -54,21 +54,16 @@ export async function trackEmailOpen(
   }
 }
 
-/**
- * Gets email open statistics for a campaign
- * @param campaignId - ID of the campaign
- * @returns Open statistics
- */
 export async function getEmailOpenStats(campaignId: string): Promise<any> {
   const txId = uuidv4().substring(0, 8);
 
   try {
-    // Get all emails for this campaign
+    
     const emails = await prisma.campaignEmail.findMany({
       where: { campaignId: campaignId },
     });
 
-    // Get open counts
+    
     const totalEmails = emails.length;
     const openedEmails = emails.filter(
       (email) => email.opened && email.opened > 0,

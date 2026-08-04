@@ -135,7 +135,7 @@ export function DataTable({
               </PaginationItem>
 
               {Array.from({ length: Math.min(5, pageCount) }, (_, i) => {
-                // Show pages around current page
+
                 let pageNum;
                 if (pageCount <= 5) {
                   pageNum = i + 1;

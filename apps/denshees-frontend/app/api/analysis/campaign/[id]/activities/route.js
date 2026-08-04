@@ -3,12 +3,8 @@ import { jwtDecode } from "jwt-decode";
 import Hogan from "hogan.js";
 import prisma from "@/lib/prisma";
 
-/**
- * GET /api/analysis/campaign/[id]/activities?date=2026-02-25
- *
- * Returns all activities for a single day (or today by default).
- * Supports fetching up to 50 events per type so we get a full day picture.
- */
+
+
 export async function GET(request, { params }) {
   try {
     const { id } = params;
@@ -22,7 +18,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Verify ownership
+    
     const campaign = await prisma.campaign.findUnique({ where: { id } });
     if (!campaign || campaign.userId !== currUser.userId) {
       return NextResponse.json(
@@ -31,7 +27,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Parse target date from query string (YYYY-MM-DD) – defaults to today
+    
     const { searchParams } = new URL(request.url);
     const dateParam = searchParams.get("date");
 
@@ -59,7 +55,7 @@ export async function GET(request, { params }) {
 
     const activities = [];
 
-    // 1. Email sends
+    
     try {
       const sends = await prisma.campaignMessage.findMany({
         where: {

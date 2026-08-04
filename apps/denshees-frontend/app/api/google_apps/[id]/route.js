@@ -22,8 +22,8 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Block deletion while the credential is still selected in an active
-    // campaign. The user must unselect it from those campaigns first.
+    
+    
     const activeCampaignCount = await prisma.campaignEmailCredential.count({
       where: {
         emailCredentialId: id,
@@ -43,10 +43,10 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Safe to remove. Clear any leftover join rows from finished/deleted
-    // campaigns first (the FK is ON DELETE RESTRICT), then delete the
-    // credential. Sticky-sender references on sent emails (campaigns_email.cred)
-    // are ON DELETE SET NULL and clear automatically.
+    
+    
+    
+    
     await prisma.$transaction([
       prisma.campaignEmailCredential.deleteMany({
         where: { emailCredentialId: id },

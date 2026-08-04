@@ -1,6 +1,6 @@
-/**
- * Miscellaneous routes including health checks and utility endpoints
- */
+
+
+
 
 import { Hono } from "hono";
 import {
@@ -10,10 +10,10 @@ import {
 
 const miscRoutes = new Hono();
 
-// Comprehensive health check that verifies all services
+
 miscRoutes.get("/health", handleHealthCheck);
 
-// Simple health check for basic availability
+
 miscRoutes.get("/ping", handleSimpleHealthCheck);
 
 export { miscRoutes };

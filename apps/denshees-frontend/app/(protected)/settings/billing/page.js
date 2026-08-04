@@ -37,8 +37,8 @@ function BillingSettings() {
   const [emailCredits, setEmailCredits] = useState([100]);
   const [aiCredits, setAiCredits] = useState([50]);
 
-  const emailCreditPrice = 0.1; // $0.1 per email credit
-  const aiCreditPrice = 0.1; // $0.1 per AI credit
+  const emailCreditPrice = 0.1; 
+  const aiCreditPrice = 0.1; 
 
   const emailCreditCost = emailCredits[0] * emailCreditPrice;
   const aiCreditCost = aiCredits[0] * aiCreditPrice;
@@ -46,14 +46,14 @@ function BillingSettings() {
   const currentEmailCredits = user?.credits || 0;
   const currentAiCredits = user?.ai_credits || 0;
 
-  // SWR mutation for creating payments
+  
   const { trigger: createPayment, isMutating: isProcessingPayment } =
     useSWRMutation("/api/payments/create", post, {
       onSuccess: (data) => {
         toast.success("Redirecting to payment page...");
         console.log("Payment created:", data);
 
-        // Redirect to payment link if provided
+        
         if (data.payment_link) {
           window.location.href = data.payment_link;
         }
@@ -67,18 +67,18 @@ function BillingSettings() {
   const handleBuyCredits = async (creditType, quantity) => {
     try {
       const paymentData = {
-        creditType: creditType, // 'email' or 'ai'
+        creditType: creditType, 
         quantity: quantity,
         userInfo: {
           customer_id: user?.id || user?.email,
           email: user?.email,
           id: user?.id,
           name: user?.name || "User",
-          city: "Unknown", // You can collect this from user or use a default
-          country: "US", // You can collect this from user or use a default
-          state: "Unknown", // You can collect this from user or use a default
-          street: "Unknown", // You can collect this from user or use a default
-          zipcode: "00000", // You can collect this from user or use a default
+          city: "Unknown", 
+          country: "US", 
+          state: "Unknown", 
+          street: "Unknown", 
+          zipcode: "00000", 
         },
       };
 
@@ -90,18 +90,18 @@ function BillingSettings() {
 
   return (
     <div id="billing-settings" className="space-y-6">
-      {/* Current Credits Display */}
+      {}
       <div className="border border-black bg-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
         <h2 className="text-xl font-bold mb-6">Current Credits</h2>
         <CreditsDisplay user={user} />
       </div>
 
-      {/* Credit Pricing Calculator */}
+      {}
       <div className="border border-black bg-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
         <h2 className="text-xl font-bold mb-6">Purchase Credits</h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Email Credits */}
+          {}
           <div className="border-2 border-black bg-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <EmailIcon className="h-5 w-5" />
@@ -165,7 +165,7 @@ function BillingSettings() {
             </div>
           </div>
 
-          {/* AI Credits */}
+          {}
           <div className="border-2 border-black bg-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
               <ZapIcon className="h-5 w-5" />
@@ -229,7 +229,7 @@ function BillingSettings() {
         </div>
       </div>
 
-      {/* Credit Usage Information */}
+      {}
       <div className="border border-black bg-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
         <h2 className="text-xl font-bold mb-6">How Credits Work</h2>
 

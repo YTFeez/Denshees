@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
-// ── Pipeline step display config ───────────────────────────
+
 const SEARCH_STEPS = [
   {
     id: "search-company",
@@ -39,7 +39,7 @@ const SEARCH_STEPS = [
   },
 ];
 
-// ── Shared status icon ─────────────────────────────────────
+
 function StepStatus({ status }) {
   if (!status) {
     return <div className="w-4 h-4 rounded-full border-2 border-gray-300" />;
@@ -65,7 +65,7 @@ function StepStatus({ status }) {
   }
 }
 
-// ── Pipeline progress (reusable for both phases) ───────────
+
 function PipelineProgress({ steps, runs, tag }) {
   return (
     <div className="space-y-3 py-2">
@@ -123,7 +123,7 @@ function PipelineProgress({ steps, runs, tag }) {
   );
 }
 
-// ── Employee picker with select all / none ─────────────────
+
 function EmployeePicker({
   employees,
   selected,
@@ -219,7 +219,7 @@ function EmployeePicker({
   );
 }
 
-// ── Final enriched results ─────────────────────────────────
+
 function EnrichedResults({ employees, contacts }) {
   const contactMap = new Map((contacts ?? []).map((c) => [c.prospectId, c]));
 
@@ -294,10 +294,7 @@ function EnrichedResults({ employees, contacts }) {
   );
 }
 
-// ── Main component ─────────────────────────────────────────
-// Phase 1: search domain → show employees
-// Phase 2: user picks employees → enrich
-// Phase 3: show results
+
 
 const PHASE = {
   IDLE: "IDLE",
@@ -313,25 +310,25 @@ export default function LeadFinderChat({ listId } = {}) {
   const [phase, setPhase] = useState(PHASE.IDLE);
   const [error, setError] = useState(null);
 
-  // Phase 1 state
+
   const [searchRun, setSearchRun] = useState(null); // { tag, publicToken, runId }
   const [company, setCompany] = useState(null);
   const [employees, setEmployees] = useState([]);
 
-  // Phase 2 state (picking)
+
   const [selected, setSelected] = useState([]);
 
-  // Phase 3 state
+
   const [enrichRun, setEnrichRun] = useState(null); // { tag, publicToken, runId }
   const [enrichedContacts, setEnrichedContacts] = useState([]);
 
-  // Add-to-list state
+
   const [isAddingToList, setIsAddingToList] = useState(false);
   const [addedToList, setAddedToList] = useState(false);
 
   const messagesEndRef = useRef(null);
 
-  // ── Realtime: search phase ─────────────────────────────
+
   const { runs: searchRuns } = useRealtimeRunsWithTag(searchRun?.tag ?? [], {
     enabled: !!searchRun,
     accessToken: searchRun?.publicToken,
@@ -343,7 +340,7 @@ export default function LeadFinderChat({ listId } = {}) {
       r.tags?.includes(searchRun?.tag),
   );
 
-  // When search completes → move to PICKING
+
   useEffect(() => {
     if (!mainSearchRun) return;
     if (mainSearchRun.status === "COMPLETED" && mainSearchRun.output) {
@@ -362,7 +359,7 @@ export default function LeadFinderChat({ listId } = {}) {
     }
   }, [mainSearchRun]);
 
-  // ── Realtime: enrich phase ─────────────────────────────
+
   const { runs: enrichRuns } = useRealtimeRunsWithTag(enrichRun?.tag ?? [], {
     enabled: !!enrichRun,
     accessToken: enrichRun?.publicToken,
@@ -373,7 +370,7 @@ export default function LeadFinderChat({ listId } = {}) {
       r.taskIdentifier === "enrich-emails" && r.tags?.includes(enrichRun?.tag),
   );
 
-  // When enrich completes → move to DONE
+
   useEffect(() => {
     if (!mainEnrichRun) return;
     if (mainEnrichRun.status === "COMPLETED" && mainEnrichRun.output) {
@@ -389,12 +386,12 @@ export default function LeadFinderChat({ listId } = {}) {
     }
   }, [mainEnrichRun]);
 
-  // Auto-scroll
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [phase, searchRuns, enrichRuns, isOpen]);
 
-  // ── Handlers ───────────────────────────────────────────
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!domain.trim()) return;
@@ -479,7 +476,7 @@ export default function LeadFinderChat({ listId } = {}) {
     setAddedToList(false);
   };
 
-  // ── Add enriched leads to list ─────────────────────────
+
   const handleAddToList = async () => {
     if (!listId || enrichedContacts.length === 0) return;
 
@@ -532,7 +529,7 @@ export default function LeadFinderChat({ listId } = {}) {
 
     if (added > 0) {
       toast.success(`Added ${added} lead${added !== 1 ? "s" : ""} to list`);
-      // Trigger SWR revalidation for the list items
+
       if (typeof window !== "undefined") {
         const { mutate } = await import("swr");
         mutate(`/api/lead-lists/${listId}/items`);

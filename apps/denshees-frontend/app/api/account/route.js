@@ -33,8 +33,8 @@ export async function GET(request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Never leak the hash — expose only whether a password is set, so the
-    // Settings UI can show "Set password" vs "Change password".
+    
+    
     const { password, ...rest } = user;
     return NextResponse.json({ ...rest, hasPassword: !!password });
   } catch (error) {

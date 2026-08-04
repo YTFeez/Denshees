@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-// Status color mapping with pastel colors
+
 const statusColors = {
   PENDING: "bg-yellow-50 text-yellow-800 border-yellow-300",
   FAILED: "bg-red-50 text-red-800 border-red-300",
@@ -13,7 +13,7 @@ const statusColors = {
   BOUNCED: "bg-orange-50 text-orange-800 border-orange-300",
 };
 
-// Map status codes to human-readable text
+
 const statusLabels = {
   PENDING: "Pending",
   FAILED: "Failed",
@@ -33,7 +33,7 @@ const StatusChip = ({ status, size = "md", className }) => {
     lg: "text-base px-3 py-1.5",
   };
 
-  // Get the human-readable label or use the original status if not mapped
+
   const label = statusLabels[status] || status;
 
   return (

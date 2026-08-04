@@ -14,7 +14,7 @@ export async function GET(request, { params }) {
       include: { campaignEmail: true },
     });
 
-    // Reshape to match old expand format
+    
     const shaped = records.map(({ campaignEmail, ...rest }) => ({
       ...rest,
       expand: { campaign_email: campaignEmail },

@@ -9,7 +9,18 @@ export async function PATCH(request, { params }) {
     const data = {};
     if (body.lead !== undefined) data.leadId = body.lead;
     if (body.campaign !== undefined) data.campaignId = body.campaign;
-    if (body.stage !== undefined) data.stageId = body.stage;
+    if (body.stage !== undefined) {
+      data.stageId = body.stage;
+      
+      if (body.stageLocked === false) {
+        data.stageLocked = false;
+      } else {
+        data.stageLocked = true;
+      }
+    }
+    if (body.stageLocked !== undefined && body.stage === undefined) {
+      data.stageLocked = !!body.stageLocked;
+    }
 
     const record = await prisma.crmDeal.update({
       where: { id: dealId },

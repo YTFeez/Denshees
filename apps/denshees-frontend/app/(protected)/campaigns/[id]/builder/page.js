@@ -1,10 +1,21 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import useSWR from "swr";
 import fetcher from "@/lib/fetcher";
-import Builder from "@/components/campaigns/builder/builder";
-import LeadFinderChat from "@/components/lead-finder-chat";
+
+const Builder = dynamic(
+  () => import("@/components/campaigns/builder/builder"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="border border-black bg-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center h-[400px]">
+        <p className="text-lg font-medium">Chargement du builder…</p>
+      </div>
+    ),
+  },
+);
 
 export default function CampaignBuilderPage() {
   const params = useParams();

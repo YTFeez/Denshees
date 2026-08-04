@@ -6,16 +6,26 @@ export async function GET(request) {
   const campaign = searchParams.get("campaign");
 
   try {
-    const [items, totalItems] = await Promise.all([
+    const [items, totalItems, edges] = await Promise.all([
       prisma.pitchEmail.findMany({
         where: { campaignId: campaign },
         orderBy: { stage: "asc" },
-        take: 25,
+        take: 50,
       }),
       prisma.pitchEmail.count({ where: { campaignId: campaign } }),
+      prisma.pitchFlowEdge.findMany({
+        where: { campaignId: campaign },
+        orderBy: { created: "asc" },
+      }),
     ]);
 
-    return NextResponse.json({ items, totalItems, page: 1, perPage: 25 });
+    return NextResponse.json({
+      items,
+      edges,
+      totalItems,
+      page: 1,
+      perPage: 50,
+    });
   } catch (error) {
     console.error(
       `[API] Error getting pitches for campaign ${campaign}:`,

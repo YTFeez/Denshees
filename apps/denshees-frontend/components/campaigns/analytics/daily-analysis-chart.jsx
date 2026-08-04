@@ -15,7 +15,7 @@ import {
   Filler,
 } from "chart.js";
 
-// Register Chart.js components
+
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -27,7 +27,7 @@ ChartJS.register(
   Filler,
 );
 
-// Helper function to convert date strings to readable format
+
 function formatDate(dateString) {
   if (!dateString) return "";
   const date = new Date(dateString);
@@ -44,16 +44,15 @@ const DailyAnalysisChart = ({ campaignId, dailyData, todayData }) => {
     if (!dailyData || !Array.isArray(dailyData) || dailyData.length === 0)
       return;
 
-    // Extract dates and format them
+
     const labels = dailyData.map((item) => formatDate(item.date));
 
-    // Add today's data if available
+
     if (todayData?.data) {
       labels.push("Today");
     }
 
-    // Extract emails opened data
-    // Extract emails sent data
+
     const emailsSent = dailyData.map((item) => item.emails_sent || 0);
     if (todayData?.data?.stages_sum !== undefined) {
       emailsSent.push(todayData.data.stages_sum);

@@ -92,7 +92,7 @@ export default function OnboardingPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-white p-8">
       <div className="w-full max-w-lg text-center">
-        {/* Step indicators */}
+        {}
         <div className="flex items-center justify-center gap-2 mb-12">
           {steps.map((_, i) => (
             <div
@@ -108,7 +108,7 @@ export default function OnboardingPage() {
           ))}
         </div>
 
-        {/* Icon + Content */}
+        {}
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStep}
@@ -161,7 +161,7 @@ export default function OnboardingPage() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Navigation */}
+        {}
         <div className="flex items-center justify-center gap-4">
           {currentStep > 0 && (
             <Button
@@ -194,7 +194,7 @@ export default function OnboardingPage() {
           )}
         </div>
 
-        {/* Step count */}
+        {}
         <p className="text-sm text-gray-400 mt-8">
           {currentStep + 1} of {steps.length}
         </p>

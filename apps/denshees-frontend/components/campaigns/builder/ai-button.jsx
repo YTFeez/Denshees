@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 
-// Icons for enhancement types
+
 const enhancementTypes = [
   {
     value: "POLITE",

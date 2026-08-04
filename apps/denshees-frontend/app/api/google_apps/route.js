@@ -12,8 +12,8 @@ export async function GET(request) {
       where: { userId: user.userId },
     });
 
-    // Count active campaigns each credential is selected in, so the UI can
-    // decide whether it is safe to delete without an extra round-trip.
+    
+    
     const activeJoins = await prisma.campaignEmailCredential.findMany({
       where: {
         emailCredentialId: { in: records.map((r) => r.id) },

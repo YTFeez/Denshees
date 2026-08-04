@@ -2,7 +2,7 @@ import axios from "axios";
 
 const instance = axios.create();
 
-// Request interceptor
+
 instance.interceptors.request.use(
   (config) => {
     if (typeof window !== "undefined") {
@@ -13,7 +13,7 @@ instance.interceptors.request.use(
           config.headers.Authorization = token;
         }
       } catch (e) {
-        // ignore parse errors
+        
       }
     }
     return config;
@@ -23,7 +23,7 @@ instance.interceptors.request.use(
   },
 );
 
-// Response interceptor
+
 instance.interceptors.response.use(
   (response) => {
     return response.data;

@@ -7,6 +7,7 @@ import {
   EyeIcon,
   CancelIcon,
 } from "mage-icons-react/bulk";
+import { PlusIcon } from "mage-icons-react/stroke";
 
 const VARIANTS = {
   replied: {
@@ -30,7 +31,20 @@ const VARIANTS = {
 };
 
 const OutcomeNode = ({ data }) => {
-  const { label, count, percentage, type } = data;
+  const {
+    label,
+    count,
+    percentage,
+    type,
+    condition,
+    fromPitchId,
+    hasBranchEmail,
+    branchPitch,
+    showAdd,
+    onAddBranch,
+    onOpenPitch,
+    disabled,
+  } = data;
   const variant = VARIANTS[type] ?? VARIANTS.noReply;
   const Icon = variant.icon;
 
@@ -41,6 +55,11 @@ const OutcomeNode = ({ data }) => {
       <Handle
         type="target"
         position={Position.Top}
+        className="!bg-black !border-2 !border-white !w-3 !h-3"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
         className="!bg-black !border-2 !border-white !w-3 !h-3"
       />
 
@@ -54,6 +73,15 @@ const OutcomeNode = ({ data }) => {
       <div>
         <div className="flex items-center justify-between text-[10px] text-gray-500">
           <span>{percentage}%</span>
+          {hasBranchEmail && branchPitch ? (
+            <button
+              type="button"
+              className={`underline ${variant.accent}`}
+              onClick={() => onOpenPitch?.(branchPitch)}
+            >
+              edit
+            </button>
+          ) : null}
         </div>
         <div className="mt-1 h-1 w-full bg-gray-200">
           <div
@@ -62,6 +90,23 @@ const OutcomeNode = ({ data }) => {
           />
         </div>
       </div>
+
+      {showAdd && (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() =>
+            onAddBranch?.({
+              condition,
+              fromPitchId,
+              delayDays: 2,
+            })
+          }
+          className="mt-1 w-full text-[10px] font-medium border border-black px-1 py-0.5 hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center gap-0.5"
+        >
+          <PlusIcon className="w-3 h-3" /> email
+        </button>
+      )}
     </div>
   );
 };

@@ -17,13 +17,13 @@ import { formatDistanceToNow } from "date-fns";
 export default function Dashboard() {
   const { user } = useAuthStore();
 
-  // Use SWR to fetch dashboard stats
+  
   const { data, error, isLoading } = useSWR(
     user?.id ? `/api/dashboard/stats?userId=${user.id}` : null,
     fetcher,
   );
 
-  // Extract data from the SWR response
+  
   const stats = data?.stats || {
     total_contacts: 0,
     total_campaigns: 0,
@@ -150,7 +150,7 @@ export default function Dashboard() {
 }
 
 function ActivityItem({ activity }) {
-  // Determine the icon based on activity type
+  
   const getActivityIcon = (type) => {
     if (type.includes("Email sent")) return <EmailIcon className="w-4 h-4" />;
     if (type.includes("Email opened")) return <EyeIcon className="w-4 h-4" />;
@@ -159,7 +159,7 @@ function ActivityItem({ activity }) {
     return <ArrowUpRightIcon className="w-4 h-4" />;
   };
 
-  // Format the timestamp in a user-friendly way
+  
   const formatTimestamp = (timestamp) => {
     try {
       return formatDistanceToNow(new Date(timestamp), { addSuffix: true });

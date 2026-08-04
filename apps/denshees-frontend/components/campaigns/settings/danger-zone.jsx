@@ -14,7 +14,7 @@ const DangerZone = ({ campaignId }) => {
   const [confirmText, setConfirmText] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // Setup mutation for deleting campaign
+
   const { trigger: deleteCampaign } = useSWRMutation(
     `/api/campaign/${campaignId}`,
     patch,

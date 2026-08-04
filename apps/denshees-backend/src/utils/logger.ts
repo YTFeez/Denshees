@@ -1,12 +1,11 @@
-/**
- * Logger utility for standardized logging across the email processor
- */
+
+
+
 
 export type LogLevel = "ERROR" | "WARN" | "DEBUG" | "INFO";
 
-/**
- * Simple logging function that masks sensitive data
- */
+
+
 export function log(
   level: LogLevel,
   message: string,

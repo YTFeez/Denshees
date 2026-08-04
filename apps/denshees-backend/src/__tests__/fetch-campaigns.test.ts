@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// ----- Mocks -----
-
 vi.mock("../services/prisma.service.js", () => ({
   prisma: {
     campaign: { findMany: vi.fn() },
@@ -14,16 +12,18 @@ vi.mock("../queues/batch-email.queue.js", () => ({
   getEnqueuedEmailIds: vi.fn().mockResolvedValue(new Set<string>()),
 }));
 
+vi.mock("../services/campaign-service.js", () => ({
+  isLeadReadyToProcess: vi.fn().mockResolvedValue(true),
+}));
+
 import { prisma } from "../services/prisma.service.js";
 import {
   enqueueEmailBatches,
   getEnqueuedEmailIds,
 } from "../queues/batch-email.queue.js";
+import { isLeadReadyToProcess } from "../services/campaign-service.js";
 import { processCampaignJob } from "../jobs/fetch-campaigns.js";
 
-// ----- Helpers -----
-
-/** Creates a campaign fixture with the user in a given timezone. */
 function makeCampaign(overrides: Record<string, any> = {}) {
   return {
     id: "campaign-1",
@@ -58,10 +58,11 @@ function makeCampaignEmail(overrides: Record<string, any> = {}) {
   };
 }
 
-// ----- Tests -----
-
 describe("processCampaignJob", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(isLeadReadyToProcess).mockResolvedValue(true);
+  });
 
   it("returns empty when no campaigns exist", async () => {
     vi.mocked(prisma.campaign.findMany).mockResolvedValue([]);
@@ -109,9 +110,9 @@ describe("processCampaignJob", () => {
   });
 
   it("filters out campaigns outside delivery period", async () => {
-    // Force current hour to be 22 (NIGHT period = 18-24) but campaign expects MORNING (6-12)
+    
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-03-22T22:00:00Z")); // 22:00 UTC
+    vi.setSystemTime(new Date("2026-03-22T22:00:00Z")); 
 
     vi.mocked(prisma.campaign.findMany).mockResolvedValue([
       makeCampaign({
@@ -128,7 +129,7 @@ describe("processCampaignJob", () => {
 
   it("includes campaigns within delivery period", async () => {
     vi.useFakeTimers();
-    // 9 AM UTC on a Wednesday
+    
     vi.setSystemTime(new Date("2026-03-25T09:00:00Z"));
 
     const campaign = makeCampaign({
@@ -150,13 +151,13 @@ describe("processCampaignJob", () => {
 
   it("filters out campaigns on inactive days", async () => {
     vi.useFakeTimers();
-    // Sunday 9 AM UTC
+    
     vi.setSystemTime(new Date("2026-03-22T09:00:00Z"));
 
     vi.mocked(prisma.campaign.findMany).mockResolvedValue([
       makeCampaign({
         emailDeliveryPeriod: "MORNING",
-        // Only active on weekdays
+        
         activeDays: ["monday", "tuesday", "wednesday", "thursday", "friday"],
         user: { id: "u-1", timezone: "UTC", credits: 10, email: "o@t.com" },
       }),
@@ -170,7 +171,7 @@ describe("processCampaignJob", () => {
 
   it("does not re-enqueue already enqueued email IDs", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-03-25T09:00:00Z")); // Wednesday 9am UTC
+    vi.setSystemTime(new Date("2026-03-25T09:00:00Z")); 
 
     vi.mocked(prisma.campaign.findMany).mockResolvedValue([
       makeCampaign({
@@ -184,7 +185,7 @@ describe("processCampaignJob", () => {
       makeCampaignEmail({ id: "ce-already-queued" }),
     ] as any);
 
-    // This ID is already enqueued
+    
     vi.mocked(getEnqueuedEmailIds).mockResolvedValue(
       new Set(["ce-already-queued"]),
     );
@@ -197,7 +198,11 @@ describe("processCampaignJob", () => {
 
   it("filters out emails sent too recently based on daysInterval", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-03-25T09:00:00Z")); // Wednesday 9am UTC
+    vi.setSystemTime(new Date("2026-03-25T09:00:00Z")); 
+
+    
+    
+    vi.mocked(isLeadReadyToProcess).mockResolvedValue(false);
 
     vi.mocked(prisma.campaign.findMany).mockResolvedValue([
       makeCampaign({
@@ -207,7 +212,6 @@ describe("processCampaignJob", () => {
       }),
     ] as any);
 
-    // This email was sent yesterday and daysInterval=5, so it should NOT be sent yet.
     const yesterday = new Date("2026-03-24T09:00:00Z");
     vi.mocked(prisma.campaignEmail.findMany).mockResolvedValue([
       makeCampaignEmail({
@@ -218,9 +222,8 @@ describe("processCampaignJob", () => {
       }),
     ] as any);
 
-    const result = await processCampaignJob();
+    await processCampaignJob();
 
-    // Fixed: email is correctly filtered out (only 1 day passed, need 5)
     expect(enqueueEmailBatches).not.toHaveBeenCalled();
 
     vi.useRealTimers();
@@ -228,7 +231,7 @@ describe("processCampaignJob", () => {
 
   it("enqueues emails when enough days have passed", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-03-25T09:00:00Z")); // Wednesday 9am UTC
+    vi.setSystemTime(new Date("2026-03-25T09:00:00Z")); 
 
     vi.mocked(prisma.campaign.findMany).mockResolvedValue([
       makeCampaign({
@@ -238,7 +241,7 @@ describe("processCampaignJob", () => {
       }),
     ] as any);
 
-    // Sent 6 days ago with daysInterval=5 → should be sent
+    
     const sixDaysAgo = new Date("2026-03-19T09:00:00Z");
     vi.mocked(prisma.campaignEmail.findMany).mockResolvedValue([
       makeCampaignEmail({
@@ -258,7 +261,10 @@ describe("processCampaignJob", () => {
 
   it("uses the per-stage pitch delay over the campaign-wide daysInterval", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-03-25T09:00:00Z")); // Wednesday 9am UTC
+    vi.setSystemTime(new Date("2026-03-25T09:00:00Z")); 
+
+    
+    vi.mocked(isLeadReadyToProcess).mockResolvedValue(false);
 
     vi.mocked(prisma.campaign.findMany).mockResolvedValue([
       makeCampaign({
@@ -268,8 +274,6 @@ describe("processCampaignJob", () => {
       }),
     ] as any);
 
-    // Global daysInterval=1 would allow a send after 1 day, but the stage-1
-    // pitch's delayDays=5 must win → NOT sent yet (only 1 day passed).
     const yesterday = new Date("2026-03-24T09:00:00Z");
     vi.mocked(prisma.campaignEmail.findMany).mockResolvedValue([
       makeCampaignEmail({
@@ -283,7 +287,7 @@ describe("processCampaignJob", () => {
       }),
     ] as any);
 
-    const result = await processCampaignJob();
+    await processCampaignJob();
 
     expect(enqueueEmailBatches).not.toHaveBeenCalled();
 
@@ -292,8 +296,10 @@ describe("processCampaignJob", () => {
 
   it("does NOT fire a follow-up early — counts elapsed 24h periods, not calendar days", async () => {
     vi.useFakeTimers();
-    // Now: Mar 25 01:00 UTC (MIDNIGHT window, hour 1).
     vi.setSystemTime(new Date("2026-03-25T01:00:00Z"));
+
+    
+    vi.mocked(isLeadReadyToProcess).mockResolvedValue(false);
 
     vi.mocked(prisma.campaign.findMany).mockResolvedValue([
       makeCampaign({
@@ -311,9 +317,6 @@ describe("processCampaignJob", () => {
       }),
     ] as any);
 
-    // Sent Mar 23 23:00 UTC → only ~26h elapsed. With delay=2 the follow-up must
-    // wait a full 48h. The old midnight-normalized code counted 2 *calendar*
-    // days (Mar 23 → Mar 25) and would have sent early; elapsed counting blocks.
     vi.mocked(prisma.campaignEmail.findMany).mockResolvedValue([
       makeCampaignEmail({
         id: "ce-early",
@@ -354,7 +357,7 @@ describe("delivery period boundaries", () => {
   for (const { name, validHour, invalidHour } of periods) {
     it(`${name}: enqueues during valid hour (${validHour}:00)`, async () => {
       vi.useFakeTimers();
-      // Use a Wednesday
+      
       const date = new Date(
         `2026-03-25T${String(validHour).padStart(2, "0")}:00:00Z`,
       );
@@ -406,12 +409,12 @@ describe("timezone handling", () => {
 
   it("respects user timezone for delivery period check", async () => {
     vi.useFakeTimers();
-    // 14:00 UTC = 9:00 AM EST (America/New_York is UTC-5 in March)
-    vi.setSystemTime(new Date("2026-03-25T14:00:00Z")); // Wednesday
+    
+    vi.setSystemTime(new Date("2026-03-25T14:00:00Z")); 
 
     vi.mocked(prisma.campaign.findMany).mockResolvedValue([
       makeCampaign({
-        emailDeliveryPeriod: "MORNING", // 6-12 in user's timezone
+        emailDeliveryPeriod: "MORNING", 
         activeDays: ["wednesday"],
         user: {
           id: "u-1",
@@ -428,15 +431,15 @@ describe("timezone handling", () => {
 
     await processCampaignJob();
 
-    // 9 AM EST is within MORNING (6-12), so emails should be enqueued
+    
     expect(enqueueEmailBatches).toHaveBeenCalled();
     vi.useRealTimers();
   });
 
   it("rejects when UTC time is morning but user timezone is not", async () => {
     vi.useFakeTimers();
-    // 9:00 UTC = 4:00 AM EST → MIDNIGHT period, not MORNING
-    vi.setSystemTime(new Date("2026-03-25T09:00:00Z")); // Wednesday
+    
+    vi.setSystemTime(new Date("2026-03-25T09:00:00Z")); 
 
     vi.mocked(prisma.campaign.findMany).mockResolvedValue([
       makeCampaign({
@@ -453,7 +456,7 @@ describe("timezone handling", () => {
 
     await processCampaignJob();
 
-    // 4 AM EST is NOT within MORNING (6-12)
+    
     expect(enqueueEmailBatches).not.toHaveBeenCalled();
     vi.useRealTimers();
   });

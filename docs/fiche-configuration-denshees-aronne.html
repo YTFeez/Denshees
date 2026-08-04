@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fiche configuration Denshees — Campagne apporteurs d'affaires</title>
+<style>
+  :root {
+    --ink: #1f2a2e;
+    --muted: #5c6b70;
+    --faint: #8a9599;
+    --line: #dde4e2;
+    --accent: #0f6e56;
+    --accent-soft: #e1f5ee;
+    --warn: #993c1d;
+    --warn-soft: #faece7;
+    --paper: #fbfcfb;
+    --card: #ffffff;
+    --mono: "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.65;
+    font-size: 15px;
+  }
+  .page { max-width: 860px; margin: 0 auto; padding: 48px 32px 80px; }
+  header { border-bottom: 3px solid var(--accent); padding-bottom: 24px; margin-bottom: 40px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 10px;
+  }
+  h1 { font-size: 27px; font-weight: 650; letter-spacing: -0.01em; margin-bottom: 8px; }
+  .meta { color: var(--muted); font-size: 14px; }
+  .meta span { margin-right: 20px; }
+  h2 {
+    font-size: 19px; font-weight: 650; margin: 44px 0 6px;
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  h2 .num {
+    font-family: var(--mono); font-size: 13px; color: var(--accent);
+    background: var(--accent-soft); border-radius: 4px; padding: 2px 8px;
+  }
+  .lead { color: var(--muted); margin-bottom: 18px; font-size: 14.5px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 22px 26px; margin-bottom: 16px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th {
+    text-align: left; font-weight: 600; color: var(--muted); font-size: 12.5px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 8px 12px; border-bottom: 2px solid var(--line);
+  }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .mono { font-family: var(--mono); font-size: 13px; }
+  .val { font-family: var(--mono); font-size: 13px; color: var(--accent); font-weight: 600; }
+  .bar-wrap { display: flex; align-items: flex-end; gap: 6px; height: 90px; margin: 18px 0 6px; }
+  .bar { flex: 1; background: var(--accent-soft); border: 1px solid var(--accent); border-bottom-width: 3px; border-radius: 4px 4px 0 0; position: relative; }
+  .bar em { position: absolute; top: -22px; left: 0; right: 0; text-align: center; font-style: normal; font-family: var(--mono); font-size: 12px; color: var(--accent); font-weight: 600; }
+  .bar-labels { display: flex; gap: 6px; }
+  .bar-labels span { flex: 1; text-align: center; font-size: 11.5px; color: var(--faint); }
+  ul.check { list-style: none; }
+  ul.check li {
+    padding: 10px 0 10px 34px; position: relative; border-bottom: 1px solid var(--line);
+  }
+  ul.check li:last-child { border-bottom: none; }
+  ul.check li::before {
+    content: ""; position: absolute; left: 4px; top: 15px;
+    width: 15px; height: 15px; border: 2px solid var(--accent); border-radius: 4px;
+  }
+  ul.check li strong { font-weight: 600; }
+  ul.check li .why { display: block; color: var(--muted); font-size: 13.5px; margin-top: 2px; }
+  .alert {
+    background: var(--warn-soft); border-left: 4px solid var(--warn);
+    padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 16px 0;
+    font-size: 14px; color: var(--warn);
+  }
+  .alert strong { font-weight: 650; }
+  .tip {
+    background: var(--accent-soft); border-left: 4px solid var(--accent);
+    padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 16px 0;
+    font-size: 14px; color: #085041;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } .page { padding: 32px 18px 60px; } }
+  footer {
+    margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line);
+    color: var(--faint); font-size: 13px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+  @media print {
+    body { background: #fff; font-size: 12.5px; }
+    .page { padding: 0; max-width: none; }
+    .card { break-inside: avoid; }
+    h2 { break-after: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="eyebrow">EP Digital X · Cold outreach · Fiche de configuration</div>
+  <h1>Configuration Denshees — Campagne apporteurs d'affaires</h1>
+  <div class="meta">
+    <span>Pour : <strong>Aronne</strong></span>
+    <span>Validé par : Daniel</span>
+    <span>Version : 1.0 — août 2026</span>
+  </div>
+</header>
+
+<h2><span class="num">01</span>Contexte en 30 secondes</h2>
+<p class="lead">Campagne de recrutement d'apporteurs d'affaires (commerciaux freelances identifiés via Sales Navigator, exportés via Toteleads). L'envoi passe par Denshees, sur des boîtes Zapmail dédiées au cold, jamais sur le domaine principal epdigital.fr.</p>
+<div class="card">
+  <table>
+    <tr><th>Élément</th><th>Valeur</th></tr>
+    <tr><td>Domaines d'envoi</td><td class="mono">3 domaines cold dédiés (jamais epdigital.fr)</td></tr>
+    <tr><td>Boîtes par domaine</td><td class="mono">daniel@ et geraldine@ (robin@ ajouté en phase 2)</td></tr>
+    <tr><td>Expéditeurs</td><td>Daniel et Géraldine en touches 1 et 2, Robin en touche 3 / phase 2</td></tr>
+    <tr><td>Fuseau horaire</td><td class="mono">Europe/Paris (cible 100 % France)</td></tr>
+    <tr><td>Listes de prospects</td><td>Import uniquement après passage MillionVerifier (bounce visé &lt; 2 %)</td></tr>
+  </table>
+</div>
+
+<h2><span class="num">02</span>Montée en volume progressive</h2>
+<p class="lead">Règle : démarrage à 5 emails/jour/boîte, puis +3 emails tous les 3 jours, jusqu'au plafond de 30 emails/jour/boîte. Ne jamais sauter de palier, même si tout semble bien se passer.</p>
+<div class="card">
+  <div class="bar-wrap">
+    <div class="bar" style="height:17%"><em>5</em></div>
+    <div class="bar" style="height:27%"><em>8</em></div>
+    <div class="bar" style="height:37%"><em>11</em></div>
+    <div class="bar" style="height:47%"><em>14</em></div>
+    <div class="bar" style="height:57%"><em>17</em></div>
+    <div class="bar" style="height:67%"><em>20</em></div>
+    <div class="bar" style="height:77%"><em>23</em></div>
+    <div class="bar" style="height:87%"><em>26</em></div>
+    <div class="bar" style="height:97%"><em>29</em></div>
+    <div class="bar" style="height:100%; background:var(--accent);"><em>30</em></div>
+  </div>
+  <div class="bar-labels">
+    <span>J1-3</span><span>J4-6</span><span>J7-9</span><span>J10-12</span><span>J13-15</span><span>J16-18</span><span>J19-21</span><span>J22-24</span><span>J25-27</span><span>J28+</span>
+  </div>
+  <p style="margin-top:14px; color:var(--muted); font-size:13.5px;">Emails par jour et par boîte, jours ouvrés uniquement. Plafond de croisière : <span class="val">30/jour/boîte</span>. Le volume doit rester stable d'un jour à l'autre : pas de dents de scie (30 lundi, 0 mardi, 30 mercredi).</p>
+</div>
+<div class="alert"><strong>Important :</strong> si un warm-up automatisé tourne en parallèle sur une boîte, ses emails comptent dans le quota. Exemple : 10 emails de warm-up/jour = maximum 20 emails de campagne ce jour-là, pas 30.</div>
+
+<h2><span class="num">03</span>Fenêtres et fréquence d'envoi</h2>
+<p class="lead">L'objectif est d'imiter une journée de travail humaine : jamais de rafale, jamais d'envoi la nuit ou le week-end.</p>
+<div class="card">
+  <table>
+    <tr><th>Paramètre</th><th>Réglage</th><th>Pourquoi</th></tr>
+    <tr><td>Fenêtre du matin</td><td class="val">7h30 → 12h00</td><td>Pic de lecture B2B entre 8h30 et 10h</td></tr>
+    <tr><td>Fenêtre de l'après-midi</td><td class="val">13h30 → 19h00</td><td>Pause déjeuner respectée = pattern humain</td></tr>
+    <tr><td>Intervalle entre 2 envois (même boîte)</td><td class="val">12 à 20 min</td><td>Délai aléatoire (jitter) obligatoire, jamais un intervalle fixe</td></tr>
+    <tr><td>Jours d'envoi</td><td class="val">Lundi → vendredi</td><td>Mardi, mercredi, jeudi en priorité ; jamais le week-end</td></tr>
+    <tr><td>Fuseau</td><td class="val">Europe/Paris</td><td>Cible nationale, un seul fuseau à gérer</td></tr>
+  </table>
+</div>
+<div class="tip">Vue système : avec 6 boîtes en parallèle, l'agrégat sort environ 1 email toutes les 2-3 minutes, mais chaque boîte individuelle garde son rythme humain de 12-20 min. Le volume vient du nombre de boîtes, jamais de la cadence d'une seule.</div>
+
+<h2><span class="num">04</span>Checklist des réglages Denshees</h2>
+<p class="lead">À dérouler dans l'ordre au moment du setup. Cocher chaque ligne.</p>
+
+<div class="card">
+  <p style="font-weight:600; margin-bottom:8px;">A. Connexion des boîtes</p>
+  <ul class="check">
+    <li><strong>Connecter chaque boîte Zapmail</strong> en SMTP/IMAP (ou OAuth si dispo), avec mot de passe d'application, jamais le mot de passe principal.<span class="why">L'IMAP est indispensable : c'est lui qui permet la détection des réponses.</span></li>
+    <li><strong>Envoyer un email de test</strong> depuis chaque boîte vers une adresse interne et vérifier réception + en-têtes SPF/DKIM/DMARC au vert.<span class="why">Contrôle via mail-tester.com : viser un score 9/10 minimum avant tout envoi réel.</span></li>
+    <li><strong>Renseigner nom complet et signature</strong> sur chaque boîte : prénom, nom, fonction, EP Digital X, téléphone. Signature en texte simple, sans image lourde, un seul lien maximum (le site).</li>
+  </ul>
+</div>
+
+<div class="card">
+  <p style="font-weight:600; margin-bottom:8px;">B. Limites et cadence</p>
+  <ul class="check">
+    <li><strong>Plafond quotidien par boîte</strong> : suivre la courbe de montée (section 02), plafond final <span class="val">30/jour</span>.</li>
+    <li><strong>Intervalle entre envois</strong> : <span class="val">12 à 20 minutes</span>, avec randomisation activée.</li>
+    <li><strong>Fenêtres horaires</strong> : <span class="val">7h30-12h00</span> et <span class="val">13h30-19h00</span>, fuseau Europe/Paris, jours ouvrés uniquement.</li>
+    <li><strong>Rotation des boîtes</strong> : répartir les leads équitablement entre les boîtes (pas 80 % du volume sur une seule).</li>
+  </ul>
+</div>
+
+<div class="card">
+  <p style="font-weight:600; margin-bottom:8px;">C. Séquence et contenu</p>
+  <ul class="check">
+    <li><strong>Délai entre les touches</strong> : 3 à 4 jours ouvrés entre l'email 1, la relance et la touche 3.<span class="why">Touches 1 et 2 : Daniel ou Géraldine. Touche 3 : Robin (« Daniel m'a transmis votre profil »).</span></li>
+    <li><strong>Arrêt automatique sur réponse</strong> : activer la détection de réponse pour sortir immédiatement le prospect de la séquence.<span class="why">Relancer quelqu'un qui a déjà répondu est le meilleur moyen d'être signalé en spam.</span></li>
+    <li><strong>Désactiver le tracking d'ouverture</strong> (pixel) si l'option existe, ou a minima le tracking de clics sur liens.<span class="why">Le pixel de tracking est un marqueur spam connu et dégrade la délivrabilité. On mesure au taux de réponse, pas au taux d'ouverture.</span></li>
+    <li><strong>Format des emails</strong> : texte quasi brut, pas de mise en page HTML, pas de pièce jointe en touche 1, pas de mots déclencheurs (gratuit, urgent, promo, garanti, €€€).</li>
+    <li><strong>Variables de personnalisation</strong> : vérifier le mapping des colonnes du CSV (prénom, entreprise, etc.) et définir une valeur de repli pour chaque variable.<span class="why">Un « Bonjour {{prenom}} » qui part tel quel grille la campagne.</span></li>
+    <li><strong>Mention de désinscription</strong> : phrase simple en fin d'email (« Si ce sujet ne vous concerne pas, dites-le-moi et je ne reviendrai pas vers vous »).<span class="why">Obligation légale (LCEN/RGPD) et signal positif pour les filtres.</span></li>
+  </ul>
+</div>
+
+<div class="card">
+  <p style="font-weight:600; margin-bottom:8px;">D. Listes et hygiène</p>
+  <ul class="check">
+    <li><strong>Import uniquement des listes vérifiées</strong> MillionVerifier (statut « good » seulement ; exclure « catch-all » risqués et « unknown »).</li>
+    <li><strong>Dédoublonnage</strong> avant import : un prospect ne doit jamais recevoir la même séquence depuis deux boîtes différentes.</li>
+    <li><strong>Liste de suppression</strong> : alimenter systématiquement avec les réponses négatives, les demandes de désinscription et les bounces.</li>
+  </ul>
+</div>
+
+<h2><span class="num">05</span>Garde-fous — quand tout arrêter</h2>
+<div class="card">
+  <table>
+    <tr><th>Signal</th><th>Seuil</th><th>Action</th></tr>
+    <tr><td>Taux de bounce d'une boîte</td><td class="val">&gt; 3 %</td><td>Pause immédiate de la boîte, revérifier la liste</td></tr>
+    <tr><td>Taux de réponse global</td><td class="val">&lt; 1 % après 200 envois</td><td>Stopper, revoir le copywriting avec Daniel avant de continuer</td></tr>
+    <tr><td>Plainte spam ou réponse agressive</td><td class="val">1 seule</td><td>Suppression immédiate du prospect, signalement à Daniel</td></tr>
+    <tr><td>Emails qui partent en spam (test de placement)</td><td class="val">&gt; 20 %</td><td>Pause du domaine concerné, diagnostic délivrabilité</td></tr>
+    <tr><td>Réponse contenant « STOP » ou « désinscri »</td><td class="val">Immédiat</td><td>Ajout à la liste de suppression, aucune relance</td></tr>
+  </table>
+</div>
+<div class="alert"><strong>Règle d'or :</strong> dans le doute, on met en pause et on demande. Une campagne en pause 24h ne coûte rien ; un domaine grillé coûte 4 semaines de warm-up.</div>
+
+<footer>
+  <span>EP Digital X — usage interne</span>
+  <span>Questions : Daniel (validation copywriting et seuils) · Robin (suivi des réponses)</span>
+</footer>
+
+</div>
+</body>
+</html>

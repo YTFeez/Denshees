@@ -18,26 +18,26 @@ import { ACTIVE_LEAD_STATUSES } from "@/lib/constants/lead-status";
 import { CampaignActivities } from "./recent-activities";
 
 const AnalyticsDashboard = ({ campaignId, campaign }) => {
-  // Fetch campaign contacts
+
   const { data: contactsData, isLoading: contactsLoading } = useSWR(
     campaignId ? `/api/contacts?campaign=${campaignId}` : null,
     fetcher,
   );
 
-  // Fetch daily stats data
+
   const { data: dailyStatsRaw, isLoading: dailyAnalysisLoading } = useSWR(
     campaignId ? `/api/analysis/campaign/${campaignId}/daily-stats` : null,
     fetcher,
   );
 
-  // Transform daily-stats shape to match what DailyAnalysisChart expects
+
   const dailyAnalysisData = dailyStatsRaw?.stats?.map((row) => ({
     date: row.day,
     opened: row.opens,
     emails_sent: row.sent,
   }));
 
-  // Fetch today's analysis data
+
   const { data: todayAnalysisData, isLoading: todayAnalysisLoading } = useSWR(
     campaignId ? `/api/today_analysis/${campaignId}` : null,
     fetcher,
@@ -53,7 +53,7 @@ const AnalyticsDashboard = ({ campaignId, campaign }) => {
     );
   }
 
-  // Calculate stats from data
+
   const contacts = contactsData || [];
   const totalContacts = contacts.length;
   const activeContacts = contacts.filter((c) =>
@@ -69,7 +69,7 @@ const AnalyticsDashboard = ({ campaignId, campaign }) => {
   const emailsOpened = contacts.filter((c) => c.opened > 0).length;
   const emailsReplied = contacts.filter((c) => c.status === "REPLIED").length;
 
-  // Calculate completion percentage
+
   const maxPossibleEmails = totalContacts * (campaign?.maxStageCount || 1);
   const completionPercentage =
     maxPossibleEmails > 0 ? (emailsSent / maxPossibleEmails) * 100 : 0;

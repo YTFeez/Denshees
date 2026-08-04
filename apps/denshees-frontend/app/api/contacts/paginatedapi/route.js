@@ -22,7 +22,7 @@ export async function GET(request) {
       prisma.campaignEmail.count({ where }),
     ]);
 
-    // Reshape to match old format: put cred in expand
+    
     const shapedItems = items.map((item) => {
       const { cred, ...rest } = item;
       return { ...rest, expand: { cred: cred || undefined } };

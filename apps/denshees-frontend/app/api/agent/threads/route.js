@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/agent/threads — list all chat threads for the current user
+
 export async function GET(request) {
   try {
     const token = request.headers.get("authorization");
@@ -13,7 +13,7 @@ export async function GET(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get distinct threadIds with latest message date
+    
     const threads = await prisma.agentChatMessage.groupBy({
       by: ["threadId"],
       where: { userId: currUser.userId },
@@ -22,7 +22,7 @@ export async function GET(request) {
       orderBy: { _max: { created: "desc" } },
     });
 
-    // For each thread, get the first user message as preview
+    
     const threadIds = threads.map((t) => t.threadId);
     const previews = await prisma.agentChatMessage.findMany({
       where: {

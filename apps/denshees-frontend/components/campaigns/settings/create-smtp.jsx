@@ -27,7 +27,7 @@ const EmailLogo = ({ src, alt = "Email Logo" }) => {
   );
 };
 
-// Component to select provider
+
 const ProviderSelection = ({ onSelect }) => {
   const providers = [
     {
@@ -102,7 +102,7 @@ const ProviderSelection = ({ onSelect }) => {
   );
 };
 
-// Component for loading spinner
+
 const LoadingSpinner = () => (
   <div role="status">
     <svg
@@ -125,7 +125,7 @@ const LoadingSpinner = () => (
   </div>
 );
 
-// Component for email credential form
+
 const EmailCredentialForm = ({
   provider,
   onSubmit,
@@ -301,7 +301,7 @@ const CreateSMTP = () => {
       }
     } catch (error) {
       console.log({ error });
-      // toast("Invalid credentials");
+
     } finally {
       setLoading(false);
     }

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Pie } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 
-// Register Chart.js components
+
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const PieChart = ({
@@ -20,10 +20,9 @@ const PieChart = ({
   });
 
   useEffect(() => {
-    // Calculate values for the pie chart
-    // We'll show the breakdown of campaign status
 
-    // Calculate the number of contacts at each stage
+
+
     const replied = emailsReplied;
     const opened = emailsOpened - replied; // Opened but didn't reply
     const sent = emailsSent - emailsOpened; // Sent but not opened

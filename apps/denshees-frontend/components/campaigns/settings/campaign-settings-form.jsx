@@ -143,7 +143,7 @@ const CampaignSettingsForm = ({ campaign, campaignData }) => {
               </Label>
               <div className="flex items-center">
                 <Select
-                  key={time} // Force re-render when time changes
+                  key={time}
                   value={time}
                   onValueChange={(value) => setTime(value)}
                 >
@@ -153,6 +153,7 @@ const CampaignSettingsForm = ({ campaign, campaignData }) => {
                   <SelectContent className="border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                     <SelectGroup>
                       <SelectLabel>Select time of the day...</SelectLabel>
+                      <SelectItem value="ALL_DAY">All day (24h)</SelectItem>
                       <SelectItem value="MORNING">6 AM - 12 PM</SelectItem>
                       <SelectItem value="EVENING">12 PM - 6 PM</SelectItem>
                       <SelectItem value="NIGHT">6 PM - 12 AM</SelectItem>

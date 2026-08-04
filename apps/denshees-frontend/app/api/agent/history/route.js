@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/agent/history?thread_id=xxx — load chat history for a thread
+
 export async function GET(request) {
   try {
     const token = request.headers.get("authorization");
@@ -37,7 +37,7 @@ export async function GET(request) {
   }
 }
 
-// POST /api/agent/history — save one or more messages
+
 export async function POST(request) {
   try {
     const token = request.headers.get("authorization");

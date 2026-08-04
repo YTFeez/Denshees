@@ -1,15 +1,14 @@
 import { prisma } from "./prisma.service.js";
 import { redis } from "../config/redis.js";
 
-/**
- * Check if the database is accessible
- */
+
+
 export async function checkDatabaseHealth(): Promise<{
   status: string;
   details?: string;
 }> {
   try {
-    // Run a simple query to verify database connectivity
+    
     await prisma.$queryRaw`SELECT 1`;
     return { status: "OK" };
   } catch (error) {
@@ -21,15 +20,14 @@ export async function checkDatabaseHealth(): Promise<{
   }
 }
 
-/**
- * Check if Redis is accessible and responsive
- */
+
+
 export async function checkRedisHealth(): Promise<{
   status: string;
   details?: string;
 }> {
   try {
-    // Try to ping Redis
+    
     const pong = await redis.ping();
 
     if (pong === "PONG") {
@@ -49,9 +47,8 @@ export async function checkRedisHealth(): Promise<{
   }
 }
 
-/**
- * Perform comprehensive health check of all services
- */
+
+
 export async function performHealthCheck() {
   const [databaseHealth, redisHealth] = await Promise.all([
     checkDatabaseHealth(),

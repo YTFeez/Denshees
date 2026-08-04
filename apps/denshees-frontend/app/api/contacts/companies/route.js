@@ -18,7 +18,7 @@ export async function GET(request) {
       select: { email: true },
     });
 
-    // Aggregate by domain
+    
     const domainMap = {};
     for (const record of records) {
       const email = record.email;

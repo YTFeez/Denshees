@@ -102,7 +102,7 @@ async function saveMessages(token, threadId, msgs) {
       body: JSON.stringify({ thread_id: threadId, messages: msgs }),
     });
   } catch {
-    // silent — saving is best-effort
+
   }
 }
 
@@ -127,7 +127,7 @@ export default function AgentChat() {
   const inputRef = useRef(null);
   const streamingRef = useRef("");
 
-  // Load threads list
+
   const loadThreads = useCallback(async () => {
     if (!token) return;
     try {
@@ -139,11 +139,11 @@ export default function AgentChat() {
         setThreads(data.threads || []);
       }
     } catch {
-      // silent
+
     }
   }, [token]);
 
-  // Load messages for current thread
+
   const loadHistory = useCallback(async () => {
     if (!token || !threadId) return;
     try {
@@ -158,13 +158,13 @@ export default function AgentChat() {
         }
       }
     } catch {
-      // silent
+
     } finally {
       setHistoryLoaded(true);
     }
   }, [token, threadId]);
 
-  // Load history when panel opens or thread changes
+
   useEffect(() => {
     if (isOpen && token) {
       setHistoryLoaded(false);
@@ -210,7 +210,7 @@ export default function AgentChat() {
       streamingRef.current = "";
       setStreamingText("");
 
-      // Collect new messages from this turn to save at the end
+
       const newMessages = [userMsg];
 
       try {
@@ -276,7 +276,7 @@ export default function AgentChat() {
                 setMessages((prev) => [...prev, errMsg]);
               }
             } catch {
-              // skip malformed JSON lines
+
             }
           }
         }
@@ -303,7 +303,7 @@ export default function AgentChat() {
         streamingRef.current = "";
         setStreamingText("");
 
-        // Persist all new messages from this turn
+
         if (token && newMessages.length > 0) {
           saveMessages(token, threadId, newMessages);
         }

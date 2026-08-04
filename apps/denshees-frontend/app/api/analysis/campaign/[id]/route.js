@@ -15,7 +15,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Fetch campaign details
+    
     const campaign = await prisma.campaign.findUnique({
       where: { id },
     });
@@ -27,7 +27,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Verify that the campaign belongs to the current user
+    
     if (campaign.userId !== currUser.userId) {
       return NextResponse.json(
         { error: "Unauthorized access to campaign" },
@@ -35,12 +35,12 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Fetch campaign emails count
+    
     const totalRecipients = await prisma.campaignEmail.count({
       where: { campaignId: id },
     });
 
-    // Compute stats via aggregates
+    
     const [emailsSent, responses, openCount] = await Promise.all([
       prisma.campaignMessage.count({
         where: { sent: true, campaignEmail: { campaignId: id } },
@@ -56,10 +56,10 @@ export async function GET(request, { params }) {
     const openRate = totalRecipients > 0 ? openCount / totalRecipients : 0;
     const responseRate = totalRecipients > 0 ? responses / totalRecipients : 0;
 
-    // Fetch recent activities for this campaign
+    
     const activities = [];
 
-    // 1. Recent email sends
+    
     try {
       const recentSends = await prisma.campaignMessage.findMany({
         where: { sent: true, campaignEmail: { campaignId: id } },

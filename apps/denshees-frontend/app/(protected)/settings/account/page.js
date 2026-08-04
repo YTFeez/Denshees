@@ -37,7 +37,7 @@ export default function AccountSettingsPage() {
 function AccountSettings() {
   const [showApiKey, setShowApiKey] = useState(false);
 
-  // Setup react-hook-form
+  
   const {
     register,
     handleSubmit,
@@ -60,7 +60,7 @@ function AccountSettings() {
     mutate: refreshUserData,
   } = useSWR("/api/account", fetcher);
 
-  // Setup mutation for updating user account
+  
   const { trigger: updateAccount, isMutating: isUpdating } = useSWRMutation(
     "/api/account",
     patch,
@@ -76,7 +76,7 @@ function AccountSettings() {
     },
   );
 
-  // Update form data when user data is loaded
+  
   useEffect(() => {
     if (userData) {
       setValue("name", userData.name || "");
@@ -317,7 +317,7 @@ function PasswordSettings() {
         newPassword: data.newPassword,
       });
     } catch {
-      // handled by onError
+      
     }
   };
 

@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { mutate } from "swr";
 
-// ── Progress bar component ─────────────────────────────────
+
 function ProgressIndicator({ progress }) {
   if (!progress) return null;
 
@@ -72,7 +72,7 @@ function ProgressIndicator({ progress }) {
   );
 }
 
-// ── Realtime run tracker ───────────────────────────────────
+
 function RunTracker({ runId, accessToken, onComplete, listId }) {
   const { run } = useRealtimeRun(runId, {
     accessToken,
@@ -92,7 +92,7 @@ function RunTracker({ runId, accessToken, onComplete, listId }) {
   useEffect(() => {
     if (isComplete && run?.output) {
       onCompleteRef.current?.(run.output);
-      // Revalidate list items
+
       mutate(`/api/lead-lists/${listId}/items`);
     }
   }, [isComplete, run?.output, listId]);
@@ -138,7 +138,7 @@ function RunTracker({ runId, accessToken, onComplete, listId }) {
   );
 }
 
-// ── Lead preview card ──────────────────────────────────────
+
 function LeadPreview({ leads, onConfirm, onEdit, onCancel, isSubmitting }) {
   return (
     <div className="space-y-3">
@@ -211,7 +211,7 @@ function LeadPreview({ leads, onConfirm, onEdit, onCancel, isSubmitting }) {
   );
 }
 
-// ── Chat message component ─────────────────────────────────
+
 function ChatMessage({ message }) {
   const isUser = message.role === "user";
 
@@ -230,7 +230,7 @@ function ChatMessage({ message }) {
   );
 }
 
-// ── Main component ─────────────────────────────────────────
+
 export default function AddLeadsChat({ listId }) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
@@ -239,7 +239,7 @@ export default function AddLeadsChat({ listId }) {
   const [isParsing, setIsParsing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Trigger run tracking
+
   const [activeRun, setActiveRun] = useState(null); // { runId, tag, publicToken }
   const [contentVisible, setContentVisible] = useState(false);
   const [buttonContentVisible, setButtonContentVisible] = useState(true);
@@ -247,37 +247,37 @@ export default function AddLeadsChat({ listId }) {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Auto-scroll
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, parsedLeads, activeRun]);
 
-  // Focus input when chat opens
+
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [isOpen]);
 
-  // ── Handle message send ──────────────────────────────
+
   const handleSend = async (e) => {
     e.preventDefault();
     const text = input.trim();
     if (!text || isParsing) return;
 
-    // Add user message
+
     const userMsg = { role: "user", content: text };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
-    // Reset textarea height
+
     if (inputRef.current) inputRef.current.style.height = "auto";
-    // Capture current leads before clearing for context
+
     const leadsSnapshot = parsedLeads;
     setIsParsing(true);
     setParsedLeads(null);
 
     try {
-      // Build conversation context (last 10 messages including hidden)
+
       const recentHistory = messages.slice(-10);
 
       const res = await fetch("/api/ai/parse-leads", {
@@ -296,7 +296,7 @@ export default function AddLeadsChat({ listId }) {
 
       const data = await res.json();
 
-      // Add assistant message
+
       if (data.message) {
         setMessages((prev) => [
           ...prev,
@@ -304,10 +304,10 @@ export default function AddLeadsChat({ listId }) {
         ]);
       }
 
-      // Show lead preview if leads were extracted
+
       if (data.leads && data.leads.length > 0) {
         setParsedLeads(data.leads);
-        // Add leads summary to conversation so AI has context for follow-ups
+
         setMessages((prev) => [
           ...prev,
           {
@@ -331,7 +331,7 @@ export default function AddLeadsChat({ listId }) {
     }
   };
 
-  // ── Confirm & trigger add-lead-to-list task ──────────
+
   const handleConfirmAdd = async () => {
     if (!parsedLeads || parsedLeads.length === 0 || !listId) return;
     setIsSubmitting(true);
@@ -373,7 +373,7 @@ export default function AddLeadsChat({ listId }) {
     }
   };
 
-  // ── Handle run completion ────────────────────────────
+
   const handleRunComplete = (output) => {
     setActiveRun(null);
     if (output?.error) {
@@ -559,7 +559,7 @@ export default function AddLeadsChat({ listId }) {
                     value={input}
                     onChange={(e) => {
                       setInput(e.target.value);
-                      // Auto-resize up to 3 lines
+
                       e.target.style.height = "auto";
                       const lineHeight = 20;
                       const maxHeight = lineHeight * 3 + 16; // 3 lines + padding

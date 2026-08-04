@@ -10,7 +10,7 @@ import { InformationCircleIcon, SaveFloppyIcon } from "mage-icons-react/bulk";
 import { AnimatePresence, motion } from "framer-motion";
 import AIButton from "@/components/campaigns/builder/ai-button";
 
-// Dynamically import JoditEditor to avoid SSR issues
+
 const JoditEditor = dynamic(() => import("jodit-react"), {
   ssr: false,
 });
@@ -154,16 +154,13 @@ const TemplateEditor = ({ value, onSave }) => {
     height: "400px",
     width: "100%",
     fullSize: false,
-    // Emit <br> per line instead of <p> — <p> carries ~1em top/bottom margin,
-    // which renders as the oversized double-gaps that make mail look templated.
-    // <br> gives single-line spacing, like a hand-typed email.
+
     enter: "br",
-    // Force pasted content to plain text — strips inline styles, fonts, images,
-    // and markup carried in from Docs/Word/web, the other "this looks automated" tell.
+
     defaultActionOnPaste: "insert_only_text",
     askBeforePasteHTML: false,
     askBeforePasteFromWord: false,
-    // Lean toolbar: no bold/color/font/image styling. Links kept (humans send links).
+
     toolbarAdaptive: false,
     buttons: ["undo", "redo", "|", "link", "|", "eraser"],
     disablePlugins: [

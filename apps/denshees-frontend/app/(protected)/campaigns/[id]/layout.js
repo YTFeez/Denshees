@@ -33,7 +33,7 @@ export default function CampaignLayout({ children }) {
 
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
-  // Fetch campaign data using SWR
+  
   const {
     data: campaignData,
     error,
@@ -46,52 +46,52 @@ export default function CampaignLayout({ children }) {
     },
   });
 
-  // Setup mutation for updating campaign status
+  
   const { trigger: updateStatus } = useSWRMutation(
     `/api/campaign/${campaignId}`,
     patch,
     {
-      // Optimistic update
+      
       onMutate: async (newData) => {
-        // Store the current campaign data to roll back if needed
+        
         const previousCampaign = currentCampaign;
 
-        // Optimistically update the UI
+        
         setCurrentCampaign({ ...currentCampaign, status: newData.status });
 
-        // Return the previous campaign data for rollback
+        
         return { previousCampaign };
       },
-      // Handle errors and rollback if needed
+      
       onError: (error, data, context) => {
-        // Rollback to the previous campaign data
+        
         setCurrentCampaign(context.previousCampaign);
         toast.error(
           `Failed to ${data.status === "RUNNING" ? "start" : "pause"} campaign`,
         );
       },
-      // Revalidate after successful mutation
+      
       onSuccess: (data, variables) => {
         toast.success(
           `Campaign ${
             variables.status === "RUNNING" ? "started" : "paused"
           } successfully`,
         );
-        mutate(); // Refresh campaign data
+        mutate(); 
       },
     },
   );
 
-  // Check if campaign has emails
+  
   const hasEmails =
     currentCampaign?.campaignEmailCredentials &&
     currentCampaign.campaignEmailCredentials.length > 0;
 
-  // Handle campaign status toggle
+  
   const handleStatusToggle = async () => {
     if (isUpdatingStatus || !currentCampaign) return;
 
-    // Don't allow starting the campaign if there are no emails
+    
     if (!hasEmails && currentCampaign.status !== "RUNNING") {
       toast.error("Cannot start campaign: No email accounts configured");
       return;
@@ -109,7 +109,7 @@ export default function CampaignLayout({ children }) {
     }
   };
 
-  // Define tabs
+  
   const tabs = [
     { name: "Leads", href: `/campaigns/${campaignId}`, tourId: "tour-tab-leads" },
     { name: "CRM", href: `/campaigns/${campaignId}/crm`, tourId: "tour-tab-crm" },
@@ -118,10 +118,10 @@ export default function CampaignLayout({ children }) {
     { name: "Settings", href: `/campaigns/${campaignId}/settings` },
   ];
 
-  // Check if a tab is active
+  
   const isTabActive = (href) => pathname === href;
 
-  // Determine if the start button should be disabled
+  
   const isStartButtonDisabled =
     isUpdatingStatus ||
     !currentCampaign ||
@@ -130,7 +130,7 @@ export default function CampaignLayout({ children }) {
   return (
     <div className="space-y-6">
       <div className="header">
-        {/* Back button and campaign title */}
+        {}
         <div className="flex items-center gap-2 min-w-0">
           <Link href="/campaigns" className="shrink-0">
             <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -147,17 +147,17 @@ export default function CampaignLayout({ children }) {
           )}
         </div>
 
-        {/* Error message */}
+        {}
         {error && (
           <div className="border border-red-300 bg-red-50 p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <p className="text-red-800">Failed to load campaign details</p>
           </div>
         )}
 
-        {/* Tabs and action button */}
+        {}
         <div>
           <div className="flex flex-col-reverse md:flex-row md:items-center md:justify-between gap-2">
-            {/* Tabs — scrollable on mobile */}
+            {}
             <div className="flex border-b border-black overflow-x-auto scrollbar-none">
               {tabs.map((tab) => (
                 <Link
@@ -231,7 +231,7 @@ export default function CampaignLayout({ children }) {
           </div>
         </div>
 
-        {/* No emails warning */}
+        {}
         {!isLoading &&
           currentCampaign &&
           !hasEmails &&
@@ -252,7 +252,7 @@ export default function CampaignLayout({ children }) {
           )}
       </div>
 
-      {/* Page content */}
+      {}
       <div>{children}</div>
     </div>
   );

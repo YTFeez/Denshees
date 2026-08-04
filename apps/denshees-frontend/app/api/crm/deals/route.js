@@ -23,7 +23,7 @@ export async function GET(request) {
       include: { lead: true, stage: true },
     });
 
-    // Reshape to match old expand format
+    
     const shaped = records.map(({ lead, stage, ...rest }) => ({
       ...rest,
       stage: rest.stageId,

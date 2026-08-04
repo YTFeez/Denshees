@@ -33,7 +33,7 @@ export default function KanbanBoard({
     useSensor(KeyboardSensor),
   );
 
-  // Group deals by stage
+
   const dealsByStage = useMemo(() => {
     const grouped = {};
     for (const stage of stages) {

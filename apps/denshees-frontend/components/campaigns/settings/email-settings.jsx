@@ -23,14 +23,14 @@ const EmailSettings = ({ campaignId }) => {
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Fetch available email accounts
+
   const {
     data: emailAccounts,
     isLoading: emailsLoading,
     mutate: refreshEmails,
   } = useSWR("/api/google_apps", fetcher);
 
-  // Fetch currently selected emails for this campaign
+
   const { data: selectedEmailsData, isLoading: selectedEmailsLoading } = useSWR(
     campaignId ? `/api/campaign/${campaignId}/selected-emails` : null,
     fetcher,
@@ -43,7 +43,7 @@ const EmailSettings = ({ campaignId }) => {
     },
   );
 
-  // Setup mutation for updating campaign emails
+
   const { trigger: updateCampaignEmails, isMutating } = useSWRMutation(
     `/api/campaign/${campaignId}`,
     patch,
@@ -57,7 +57,7 @@ const EmailSettings = ({ campaignId }) => {
     },
   );
 
-  // Setup mutation for deleting email accounts
+
   const { trigger: deleteEmailAccount, isMutating: isDeleting } =
     useSWRMutation(
       "/api/google_apps/delete",
@@ -115,7 +115,7 @@ const EmailSettings = ({ campaignId }) => {
       try {
         await deleteEmailAccount({ id: emailId });
 
-        // If the deleted email was selected, remove it from selected emails
+
         if (selectedEmails.includes(emailId)) {
           setSelectedEmails((prev) => prev.filter((id) => id !== emailId));
         }

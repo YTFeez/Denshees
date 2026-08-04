@@ -52,3 +52,18 @@ CLAUDE.md
 
 # Local-only throwaway scripts (manual probes, one-off tests — never deployed)
 *.local.ts
+
+# Mailbox secrets (Zapmail imports)
+scripts/.mailboxes.local.json
+**/*mailboxes*.xlsx
+**/mailboxes-*.json
+
+# Shared account / dumps locaux (secrets)
+scripts/.shared-account.local.txt
+scripts/*.dump
+scripts/.mailboxes.local.json
+
+scripts/_inventory.sql
+scripts/_migrate-to-shared.sql
+scripts/_strip*
+scripts/*.local.*

@@ -1,6 +1,6 @@
-/**
- * Email batch processing job
- */
+
+
+
 
 import { v4 as uuidv4 } from "uuid";
 import { log } from "../utils/logger.js";
@@ -14,15 +14,12 @@ import { sendCampaignEmail } from "../services/email-service.js";
 import type { EmailRecord } from "../models/email.js";
 import { removeEnqueuedEmailIds } from "../queues/batch-email.queue.js";
 
-/**
- * Processes a batch job for sending campaign emails.
- * @param data - Array of email IDs or object with emailIds property.
- * @returns Array of processed emails
- */
+
+
 export async function processEmailBatchJob(
   data: string[] | { emailIds: string[] },
 ): Promise<EmailRecord[]> {
-  // Handle both array format and object format with emailIds property
+  
   const emailIds = Array.isArray(data) ? data : data.emailIds;
 
   const batchId = uuidv4().substring(0, 8);
@@ -43,7 +40,7 @@ export async function processEmailBatchJob(
     const campaignEmails = await fetchCampaignEmails(emailIds);
     log("INFO", `Fetched ${campaignEmails.length} campaign emails`, batchId);
 
-    // Extract and setup email transporters from the campaigns' emails arrays
+    
     log("INFO", `Extracting unique credentials`, batchId);
     const uniqueCredentials = extractUniqueCredentials(campaignEmails);
     log(
@@ -54,7 +51,7 @@ export async function processEmailBatchJob(
 
     setupEmailTransporters(uniqueCredentials);
 
-    // Group emails by credential to avoid rate limiting
+    
     const emailsByCredential = groupEmailsByCredential(campaignEmails);
 
     log("INFO", `Grouped emails by credential`, batchId, {
@@ -67,7 +64,7 @@ export async function processEmailBatchJob(
       ),
     });
 
-    // Process emails by credential with appropriate delays
+    
     const results = await processEmailsByCredential(
       emailsByCredential,
       batchId,
@@ -101,11 +98,8 @@ export async function processEmailBatchJob(
   }
 }
 
-/**
- * Groups emails by credential ID to avoid rate limiting.
- * @param campaignEmails - List of campaign emails.
- * @returns Map of credential IDs to arrays of emails.
- */
+
+
 function groupEmailsByCredential(
   campaignEmails: EmailRecord[],
 ): Map<string, EmailRecord[]> {
@@ -122,12 +116,8 @@ function groupEmailsByCredential(
   return emailsByCredential;
 }
 
-/**
- * Processes emails grouped by credential.
- * @param emailsByCredential - Map of credential IDs to arrays of emails.
- * @param batchId - Batch ID for logging.
- * @returns Array of successfully processed emails.
- */
+
+
 async function processEmailsByCredential(
   emailsByCredential: Map<string, EmailRecord[]>,
   batchId: string,
@@ -139,7 +129,7 @@ async function processEmailsByCredential(
       emailCount: emails.length,
     });
 
-    // Process emails for this credential with a longer delay
+    
     for (const email of emails) {
       const emailTxId = `${batchId}:${email.id.substring(0, 6)}`;
       try {
@@ -147,7 +137,7 @@ async function processEmailsByCredential(
         await sendCampaignEmail(email, emailTxId);
         results.push(email);
 
-        // Use a longer delay between emails from the same credential (3-5 seconds)
+        
         const delayMs = 20000 + Math.random() * 2000;
         log(
           "INFO",
@@ -163,7 +153,7 @@ async function processEmailsByCredential(
       }
     }
 
-    // Add a longer delay between processing different credentials
+    
     if (credId !== "unassigned" && emailsByCredential.size > 1) {
       const delayMs = 10000 + Math.random() * 5000;
       log(

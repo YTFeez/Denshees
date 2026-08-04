@@ -39,7 +39,7 @@ const EditLeadDialog = ({ open = false, setOpen, lead = null, campaign }) => {
     value: "",
   });
 
-  // Setup mutation for updating a lead
+
   const { trigger: updateLead, isMutating } = useSWRMutation(
     lead ? `/api/lead/update?lead=${lead.id}` : null,
     patch,
@@ -55,7 +55,7 @@ const EditLeadDialog = ({ open = false, setOpen, lead = null, campaign }) => {
     },
   );
 
-  // Populate form when lead data changes
+
   useEffect(() => {
     if (lead) {
       setLeadData({
@@ -63,16 +63,16 @@ const EditLeadDialog = ({ open = false, setOpen, lead = null, campaign }) => {
         email: lead.email || "",
       });
 
-      // Handle personalization - could be JSON string or object
+
       try {
         let parsedPersonalization = {};
 
         if (lead.personalization) {
           if (typeof lead.personalization === "string") {
-            // It's a JSON string, parse it
+
             parsedPersonalization = JSON.parse(lead.personalization);
           } else if (typeof lead.personalization === "object") {
-            // It's already an object, use it directly
+
             parsedPersonalization = lead.personalization;
           }
         }
@@ -83,7 +83,7 @@ const EditLeadDialog = ({ open = false, setOpen, lead = null, campaign }) => {
         setPersonalization({});
       }
     } else {
-      // Reset form when no lead
+
       setLeadData({ name: "", email: "" });
       setPersonalization({});
     }
@@ -101,11 +101,11 @@ const EditLeadDialog = ({ open = false, setOpen, lead = null, campaign }) => {
     e.preventDefault();
 
     try {
-      // Validate the form data
+
       leadSchema.parse(leadData);
       setFormError(null);
 
-      // Update the lead via API
+
       await updateLead({
         email: leadData.email,
         name: leadData.name,

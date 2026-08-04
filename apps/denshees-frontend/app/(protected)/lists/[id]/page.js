@@ -56,7 +56,7 @@ const leadSchema = z.object({
 });
 
 function downloadCSV(items, listName) {
-  // Collect all unique personalization keys across items
+  
   const personalizationKeys = [
     ...new Set(
       items.flatMap((item) =>
@@ -97,14 +97,14 @@ export default function ListDetailPage() {
   const { id } = useParams();
   const router = useRouter();
 
-  // Fetch list info
+  
   const {
     data: list,
     error: listError,
     isLoading: listLoading,
   } = useSWR(`/api/lead-lists/${id}`, fetcher);
 
-  // Fetch list items
+  
   const {
     data: itemsData,
     error: itemsError,
@@ -113,7 +113,7 @@ export default function ListDetailPage() {
 
   const items = itemsData?.items || [];
 
-  // --- Edit list name/info ---
+  
   const [editingList, setEditingList] = useState(false);
   const [listForm, setListForm] = useState({});
 
@@ -137,7 +137,7 @@ export default function ListDetailPage() {
       onError: () => toast.error("Failed to update list"),
     });
 
-  // --- Add item ---
+  
   const [addOpen, setAddOpen] = useState(false);
   const [itemForm, setItemForm] = useState({
     name: "",
@@ -232,7 +232,7 @@ export default function ListDetailPage() {
       onError: () => toast.error("Failed to delete list"),
     });
 
-  // --- Sorting ---
+  
   const [sorting, setSorting] = useState([]);
 
   const columns = useMemo(
@@ -446,7 +446,7 @@ export default function ListDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {}
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-4">
           <Link href="/lists">
@@ -668,7 +668,7 @@ export default function ListDetailPage() {
                         </div>
                       )}
 
-                      {/* Personalization Section */}
+                      {}
                       {Object.entries(personalization).length > 0 && (
                         <div className="mt-4 p-4 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                           <h4 className="text-sm font-medium mb-2">
@@ -761,7 +761,7 @@ export default function ListDetailPage() {
         </div>
       </div>
 
-      {/* Items table */}
+      {}
       <div className="border border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
         {items.length === 0 ? (
           <div className="p-8 text-center">
