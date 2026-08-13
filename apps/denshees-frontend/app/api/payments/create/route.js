@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import DodoPayments from "dodopayments";
 
-
-const client = new DodoPayments({
-  bearerToken: process.env["DODO_PAYMENTS_API_KEY"],
-  
-});
+function getDodoClient() {
+  const bearerToken = process.env.DODO_PAYMENTS_API_KEY;
+  if (!bearerToken) {
+    throw new Error("DODO_PAYMENTS_API_KEY is not configured");
+  }
+  return new DodoPayments({ bearerToken });
+}
 
 export async function POST(request) {
   try {
+    const client = getDodoClient();
     const body = await request.json();
     const { creditType, quantity, userInfo } = body;
 

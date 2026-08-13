@@ -4,24 +4,25 @@ RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
 WORKDIR /app
 
-# Copy workspace config files
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
 
-# Copy package.json files for all workspace packages
 COPY apps/denshees-frontend/package.json apps/denshees-frontend/
 COPY packages/database/package.json packages/database/
 
-# Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy source code
 COPY packages/database/ packages/database/
 COPY apps/denshees-frontend/ apps/denshees-frontend/
 
-# Generate Prisma client
+ENV DATABASE_URL="postgresql://postgres:build@postgres:5432/denshees"
+ENV JWT_SECRET="build-time-jwt-secret"
+ENV API_KEY="build-time-api-key"
+ENV OPENAI_API_KEY="sk-build-placeholder"
+ENV DODO_PAYMENTS_API_KEY="dp_build_placeholder"
+ENV NODE_OPTIONS="--max-old-space-size=3072"
+
 RUN pnpm --filter @denshees/database db:generate
 
-# Build Next.js app
 WORKDIR /app/apps/denshees-frontend
 RUN pnpm build
 
