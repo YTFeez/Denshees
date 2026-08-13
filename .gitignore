@@ -45,6 +45,7 @@ yarn-error.log*
 /temp
 .worktrees
 .env.*
+!.env.hostinger.example
 CLAUDE.md
 
 # Local-only notes (personal backlog, learning notes, etc.)
